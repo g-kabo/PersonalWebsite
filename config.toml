@@ -1,4 +1,4 @@
-baseurl = "https://www.example.com/"
+baseurl = "https://gk-blog.netlify.app/"
 languageCode = "en-us"
 title = "Blackburn Theme Demo"
 theme = "blackburn"
