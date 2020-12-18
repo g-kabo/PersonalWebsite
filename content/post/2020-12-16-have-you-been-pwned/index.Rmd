@@ -1,0 +1,324 @@
+---
+title: Have you been Pwned?
+author: ''
+date: '2020-12-16'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+
+```{r, message=FALSE}
+library(tidyverse)
+library(extrafont)
+library(ggtext)
+library(wordcloud2)
+#loadfonts(device = "win")
+```
+
+
+Today we will look at the data from major hacks!
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam ac nisi laoreet, pharetra diam ut, tincidunt eros. Interdum et malesuada fames ac ante ipsum primis in faucibus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nulla volutpat ipsum et tortor rutrum, iaculis sagittis lacus rutrum. Vivamus enim lorem, sodales eget dolor eu, lacinia blandit mi. Morbi id cursus lectus. In mi sem, volutpat quis enim nec, congue viverra ante. Integer placerat placerat urna, vel congue ipsum malesuada sit amet. Mauris bibendum ex quis metus posuere ultrices. Curabitur aliquam ex id enim egestas accumsan. Etiam aliquam ligula ut elit rhoncus interdum. Aenean nec eros pulvinar, faucibus velit quis, pellentesque eros.
+
+Vestibulum non iaculis urna, eget sagittis mauris. Nam cursus rutrum quam id porta. Cras consequat varius metus, a lacinia ligula sollicitudin eu. Nullam ex massa, sagittis eu elementum id, laoreet sed massa. Proin vitae velit ut magna facilisis facilisis eu fringilla felis. Etiam eleifend feugiat neque. Sed placerat orci ut eros rutrum placerat. Nunc felis purus, volutpat id cursus ac, faucibus ut tortor. Aliquam neque est, fermentum ut diam a, aliquet porta risus. Cras sit amet suscipit elit.
+
+Nullam feugiat velit at nibh condimentum accumsan. Mauris eu fringilla libero, nec tempor lectus. Suspendisse eu sapien elementum, maximus ipsum sed, hendrerit tellus. Nullam et lacus iaculis, sodales nibh id, ultrices felis. Fusce vulputate quis ex at volutpat. Ut quis urna non est malesuada sodales sed non quam. Suspendisse potenti. Suspendisse nec erat scelerisque, lobortis sapien eget, tristique ex. In sit amet mi laoreet, bibendum nunc quis, sodales ligula. Nunc vitae ligula ut dolor porttitor laoreet. Curabitur sagittis at mauris non vestibulum. Donec tristique ullamcorper risus, quis tincidunt lacus hendrerit id. Fusce vitae facilisis ligula, ac bibendum lorem.
+
+
+```{r}
+url <-  "https://haveibeenpwned.com/api/v2/breaches"
+
+raw_result  <- httr::GET(url)
+data_breaches <- httr::content(raw_result, as = "text") %>%
+  jsonlite::fromJSON()
+
+data_breach <-  data_breaches %>% 
+  select(-LogoPath) %>%
+  mutate(across(ends_with("Date"), as.Date))
+  #mutate(ends_with("Date") = as.Date.character(ends_with("Date"))   )
+
+```
+
+
+```{r}
+skimr::skim(data_breach)
+```
+
+
+We will obtain list of the types of stolen data. We see examples such as: Email addresses, IP addresses, names, password phone numbers, physical addresses, credit cards, biometric data  to more spurious data such as eating habits, sexual fetishes, and Astrological signs.
+
+```{r}
+data_breach %>%
+  select(DataClasses)%>%
+  unnest(cols = c(DataClasses)) %>%
+  unique() %>%
+  rmarkdown::paged_table()
+```
+
+
+
+```{r,dpi=100, fig.wid=7, fig.height=5}
+data_breach %>%
+  select(DataClasses)%>%
+  unnest(cols = c(DataClasses)) %>%
+  count(DataClasses,sort=TRUE)  %>%
+  slice_max(order_by = n,n=10) %>%
+  ggplot(aes(x=n,y=reorder(DataClasses,n)))+
+  geom_col(fill="#009732")+
+  geom_text(aes(label=n),hjust=-.1,col="#2CE71E")+
+  scale_x_continuous(expand= expansion(c(0,0.1) ))+
+  labs(title="Emails and passwords were the most common data stolen",
+       subtitle="Most common data stolen from major data breeches",
+       x="Number of Breaches",y="Data",
+       caption="Source: haveibeenpwned.com")+
+  theme(plot.background = element_rect(fill="black"),
+        panel.background = element_rect(fill="black"),
+        text = element_text(colour="#2CE71E",family="Rockwell"),
+        axis.text = element_text(colour="#2CE71E",size=10),
+        panel.grid = element_blank(),
+        axis.ticks = element_blank())
+  
+```
+
+Below we see a word cloud of the most common
+
+```{r, fig.width=10}
+set.seed(15)
+data_breach %>%
+  select(DataClasses)%>%
+  unnest(cols = c(DataClasses)) %>%
+  count(DataClasses,sort=TRUE)  %>%
+  #mutate(DataClasses=str_replace_all(DataClasses," ","-")) %>% 
+# wordcloud2(color=sample( c("#00FF41","#7FE706","#48A70B","#A4FF00","#66FF01","#2CE71E","#0AAF30"),126,replace=TRUE), backgroundColor ="black",rotateRatio=0,size=0.5,fontFamily="Rockwell")
+   wordcloud2(color='random-light', backgroundColor = "black",rotateRatio=0,size=0.5,fontFamily="Rockwell")
+```
+
+
+```{r}
+data_breach %>% 
+  select(Name,PwnCount,BreachDate) %>% 
+  arrange(-PwnCount)%>%
+  #filter(PwnCount > 1e6) %>% 
+  ggplot(aes(x=BreachDate,y=PwnCount,col=PwnCount))+
+  geom_point(size=2)+
+  scale_x_date(date_labels = "%Y",date_breaks = "2 years")+
+  scale_y_continuous(labels = scales::label_number_si())+
+  scale_color_viridis_c(option="B",begin=0.2,end=1)+
+  labs(title="The number of substantial data breaches has increased over recent years",subtitle = "The number of accounts affected in a data breach over time")+
+  theme(panel.background  = element_rect(fill="black"),
+        panel.grid = element_blank(),
+       # panel.grid.major.x = element_line(colour="grey20"),
+        panel.grid.major.y = element_line(colour="grey20"),
+        plot.background = element_rect(fill="black"),
+        text = element_text(colour = "white"),
+        legend.position = "none")
+```
+
+
+```{r}
+data_breach %>%
+  mutate(Substantial = if_else(PwnCount>=1e7,TRUE,FALSE  ), 
+         breachyear = lubridate::year(BreachDate)) %>%
+  filter(Substantial == TRUE) %>% 
+  group_by(breachyear)%>%
+  count(Substantial) %>%
+  ggplot(aes(x=breachyear,y=n))+
+  geom_col(fill="#AA1016")+
+  geom_text(aes(label=n),vjust=-.5,col="white")+
+  scale_x_continuous(breaks= seq(2008,2020,1))+
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,24) )+ 
+  labs(title="Though the number of massive data breaches peaked in 2018...",
+       subtitle = "Plot showing number of breaches affecting at least <span style = 'color: #AA1016'>**10 million people**</span>. \n \nWhile the number of massive data breaches has decreased from 2018,<br>online users needs to remain cautious as the number of massive breaches is still higher<br> than it was in the first half of the previous decade.",
+       y="Number of breaches",x="Year",caption="Source: haveibeenpwned.com")+
+  theme(panel.background  = element_rect(fill="black"),
+        panel.grid = element_blank(),
+       # panel.grid.major.x = element_line(colour="grey20"),
+        panel.grid.major.y = element_line(colour="grey20"),
+       axis.ticks = element_blank(),
+        plot.background = element_rect(fill="black"),
+        text = element_text(colour = "white"),
+        legend.position = "none",
+        plot.title = element_text(size=15,face = "bold"),
+       plot.title.position = "plot",
+        plot.subtitle = ggtext::element_markdown())
+  
+```
+
+
+
+
+```{r}
+data_breach %>%
+  mutate(Substantial = if_else(PwnCount>=1e6,TRUE,FALSE  ), #was 1e7
+         breachyear = lubridate::year(BreachDate)) %>%
+  filter(Substantial == TRUE) %>% 
+  group_by(breachyear)%>%
+  count(Substantial) %>%
+  ggplot(aes(x=breachyear,y=n))+
+  geom_col(fill="#EA7700")+
+  geom_text(aes(label=n),vjust=-.5,col="white")+
+  scale_x_continuous(breaks= seq(2007,2020,1))+
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,49) )+ #was 24
+  labs(title="...the number of big breaches is still increasing",
+       subtitle = "Plot showing number of breaches affecting at least <span style = 'color:#EA7700;'>**one million people**</span>. \n \nThe number of large data breaches has steadily been increasing over the years.<br>Users must remain vigilant in making sure they use secure passwords and accounts.",
+       y="Number of breaches",x="Year",caption="Source: haveibeenpwned.com")+
+  theme(panel.background  = element_rect(fill="black"),
+        panel.grid = element_blank(),
+        # panel.grid.major.x = element_line(colour="grey20"),
+        panel.grid.major.y = element_line(colour="grey20"),
+        axis.ticks = element_blank(),
+        plot.background = element_rect(fill="black"),
+        text = element_text(colour = "white"),
+        legend.position = "none",
+        plot.title = element_text(face = "bold", size = 15),
+        plot.title.position = "plot",
+        plot.subtitle = ggtext::element_markdown())
+```
+
+
+
+```{r}
+data_breach %>%
+  mutate(Substantial = if_else(PwnCount>=1000,TRUE,FALSE  ), #was 1e7
+         breachyear = lubridate::year(BreachDate)) %>%
+  filter(Substantial == TRUE) %>% 
+  group_by(breachyear)%>%
+  count(Substantial) %>%
+  ggplot(aes(x=breachyear,y=n))+
+  geom_col(fill="#E5BE00")+
+  geom_text(aes(label=n),vjust=-.5,col="white")+
+  scale_x_continuous(breaks= seq(2007,2020,1))+
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,99) )+ #was 24
+  labs(title="The number of data breaches peaked in 2016",
+       subtitle = "Plot showing number of breaches affecting at least <span style = 'color:#E5BE00;'>**one thousand people**</span>. \n \nThe number of data breache rose quite quickly from just one large data breech in 2007 <br>  to over 90 in less then a decade, but there has been a decrease since the peak in 2016.",
+       y="Number of breaches",x="Year",caption="Source: haveibeenpwned.com")+
+  theme(panel.background  = element_rect(fill="black"),
+        panel.grid = element_blank(),
+        # panel.grid.major.x = element_line(colour="grey20"),
+        panel.grid.major.y = element_line(colour="grey20"),
+        axis.ticks = element_blank(),
+        plot.background = element_rect(fill="black"),
+        text = element_text(colour = "white"),
+        legend.position = "none",
+        plot.title = element_text(face = "bold", size = 15),
+        plot.title.position = "plot",
+        plot.subtitle = ggtext::element_markdown())
+
+```
+
+```{r}
+data_breach %>% 
+  group_by(IsVerified,IsFabricated,IsSensitive,IsRetired,IsSpamList) %>% 
+  count(sort=TRUE,name = "Number")
+```
+
+```{r}
+data_breach %>%
+  filter(IsSensitive==TRUE) %>% 
+  select(Title,BreachDate,PwnCount) %>%
+  slice_max(order_by = PwnCount,n=10) %>% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill="#480FF0",col="#906DF6")+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = "M") ),hjust=-0.1,col="white")+
+  scale_x_continuous(labels=scales::label_number_si(),limits=c(0,1.9e8),expand = c(0,0))+
+  #scale_y_discrete(expand=expansion(0,0))+
+  labs(title="The biggest senstive data breaches",subtitle="A senstive breach can have an adverse affects on site users if discovered",
+       x="Number of Accounts Affected",y="Site",caption="Sorce: haveibeenpwned.com")+
+    theme(panel.background  = element_rect(fill="black"),
+    panel.grid = element_blank(),
+ #  panel.grid.major.x = element_line(colour="grey20"),
+    panel.grid.major.x = element_line(colour="grey20"),
+    plot.background = element_rect(fill="black"),
+    text = element_text(colour = "white"),
+    axis.text =element_text(colour = "white"), 
+    plot.title.position = "plot")
+  
+```
+
+The biggest data breaches
+
+
+```{r, fig.width=9}
+data_breach %>% 
+  #unnest(DataClasses) %>%
+  #filter(DataClasses == "Passwords") %>%
+  slice_max(order_by=PwnCount,n=10) %>% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill="#2915EA",col="#7161ed")+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = "M") ) ,col="white",hjust=-.1)+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+    scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
+  #scale_y_discrete(expand=expansion(0,0))+
+  labs(title="The biggest data breaches known so far",subtitle="Billions of accounts containing personal details such as email adresses and passwords have been leaked.\nThis list only contains the known breaches, there is no telling how many unnoticed major data breaches have occured...",
+       x="Number of Accounts Affected",y="Data Breach Source",caption="Sorce: haveibeenpwned.com")+
+    theme(panel.background  = element_rect(fill="black"),
+    panel.grid = element_blank(),
+ #  panel.grid.major.x = element_line(colour="grey20"),
+    panel.grid.major.x = element_line(colour="grey20"),
+    plot.background = element_rect(fill="black"),
+    text = element_text(colour = "white"),
+    axis.text.y =element_text(colour = "white"), 
+    plot.title.position = "plot")
+```
+
+
+
+
+
+Which were biggest data breaches that contained leaked password details?
+
+```{r}
+data_breach %>% 
+  unnest(DataClasses) %>%
+  filter(DataClasses == "Passwords") %>%
+  slice_max(order_by=PwnCount,n=15) %>% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill="#0856F7",col="#3675f9")+
+    geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = "M") ) ,col="white",hjust=-.1)+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+    scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
+  #scale_y_discrete(expand=expansion(0,0))+
+  labs(title="The data breaches with the most passwords leaked",subtitle="Billions of passwords have been leaked",
+       x="Number of Accounts Affected",y="Data Breach Source",caption="Sorce: haveibeenpwned.com")+
+    theme(panel.background  = element_rect(fill="black"),
+    panel.grid = element_blank(),
+ #  panel.grid.major.x = element_line(colour="grey20"),
+    panel.grid.major.x = element_line(colour="grey20"),
+    plot.background = element_rect(fill="black"),
+    text = element_text(colour = "grey40"),
+    plot.title = element_text(colour="white"),
+    plot.subtitle = element_text(colour="white"),
+    axis.text.y =element_text(colour = "white"), 
+    plot.title.position = "plot")
+```
+
+
+```{r}
+data_breach %>% 
+  mutate( dow =  lubridate::wday(BreachDate,label=TRUE,week_start=1)) %>% 
+  group_by(dow) %>% 
+  count() %>% 
+  ggplot(aes(x=dow,y=n))+
+  geom_col(fill="dodgerblue4")+
+  geom_text(aes(label=n),vjust=-.4)+
+  theme_minimal()+
+  labs(title="Breaches on a Saturday and Tuestday seem to be the most common",subtitle="Saturday seems  the least common",caption="Source: haveibeenpwned.com",
+       x="Day of Week",y="Number of Breaches")
+```
+
+
+```{r}
+data_breach %>% 
+  mutate( month =  lubridate::month(BreachDate,label=TRUE)) %>% 
+  group_by(month) %>% 
+  count() %>% 
+  ggplot(aes(x=month,y=n))+
+  geom_col(fill="dodgerblue4")+
+  geom_text(aes(label=n),vjust=-.4)+
+  theme_minimal()+
+  labs(title="Summer seems to be the most common time of year for breaches to occur",subtitle="January and December are not far behind however",caption="Source: haveibeenpwned.com",
+       x="Month",y="Number of Breaches")
+```

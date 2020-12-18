@@ -1,0 +1,540 @@
+---
+title: Have you been Pwned?
+author: ''
+date: '2020-12-16'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+<link href="index_files/pagedtable/css/pagedtable.css" rel="stylesheet" />
+<script src="index_files/pagedtable/js/pagedtable.js"></script>
+<script src="index_files/htmlwidgets/htmlwidgets.js"></script>
+<link href="index_files/wordcloud2/wordcloud.css" rel="stylesheet" />
+<script src="index_files/wordcloud2/wordcloud2-all.js"></script>
+<script src="index_files/wordcloud2/hover.js"></script>
+<script src="index_files/wordcloud2-binding/wordcloud2.js"></script>
+
+
+<pre class="r"><code>library(tidyverse)
+library(extrafont)
+library(ggtext)
+library(wordcloud2)
+#loadfonts(device = &quot;win&quot;)</code></pre>
+<p>Today we will look at the data from major hacks!</p>
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam ac nisi laoreet, pharetra diam ut, tincidunt eros. Interdum et malesuada fames ac ante ipsum primis in faucibus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nulla volutpat ipsum et tortor rutrum, iaculis sagittis lacus rutrum. Vivamus enim lorem, sodales eget dolor eu, lacinia blandit mi. Morbi id cursus lectus. In mi sem, volutpat quis enim nec, congue viverra ante. Integer placerat placerat urna, vel congue ipsum malesuada sit amet. Mauris bibendum ex quis metus posuere ultrices. Curabitur aliquam ex id enim egestas accumsan. Etiam aliquam ligula ut elit rhoncus interdum. Aenean nec eros pulvinar, faucibus velit quis, pellentesque eros.</p>
+<p>Vestibulum non iaculis urna, eget sagittis mauris. Nam cursus rutrum quam id porta. Cras consequat varius metus, a lacinia ligula sollicitudin eu. Nullam ex massa, sagittis eu elementum id, laoreet sed massa. Proin vitae velit ut magna facilisis facilisis eu fringilla felis. Etiam eleifend feugiat neque. Sed placerat orci ut eros rutrum placerat. Nunc felis purus, volutpat id cursus ac, faucibus ut tortor. Aliquam neque est, fermentum ut diam a, aliquet porta risus. Cras sit amet suscipit elit.</p>
+<p>Nullam feugiat velit at nibh condimentum accumsan. Mauris eu fringilla libero, nec tempor lectus. Suspendisse eu sapien elementum, maximus ipsum sed, hendrerit tellus. Nullam et lacus iaculis, sodales nibh id, ultrices felis. Fusce vulputate quis ex at volutpat. Ut quis urna non est malesuada sodales sed non quam. Suspendisse potenti. Suspendisse nec erat scelerisque, lobortis sapien eget, tristique ex. In sit amet mi laoreet, bibendum nunc quis, sodales ligula. Nunc vitae ligula ut dolor porttitor laoreet. Curabitur sagittis at mauris non vestibulum. Donec tristique ullamcorper risus, quis tincidunt lacus hendrerit id. Fusce vitae facilisis ligula, ac bibendum lorem.</p>
+<pre class="r"><code>url &lt;-  &quot;https://haveibeenpwned.com/api/v2/breaches&quot;
+
+raw_result  &lt;- httr::GET(url)
+data_breaches &lt;- httr::content(raw_result, as = &quot;text&quot;) %&gt;%
+  jsonlite::fromJSON()
+
+data_breach &lt;-  data_breaches %&gt;% 
+  select(-LogoPath) %&gt;%
+  mutate(across(ends_with(&quot;Date&quot;), as.Date))
+  #mutate(ends_with(&quot;Date&quot;) = as.Date.character(ends_with(&quot;Date&quot;))   )</code></pre>
+<pre class="r"><code>skimr::skim(data_breach)</code></pre>
+<table>
+<caption><span id="tab:unnamed-chunk-3">Table 1: </span>Data summary</caption>
+<tbody>
+<tr class="odd">
+<td align="left">Name</td>
+<td align="left">data_breach</td>
+</tr>
+<tr class="even">
+<td align="left">Number of rows</td>
+<td align="left">495</td>
+</tr>
+<tr class="odd">
+<td align="left">Number of columns</td>
+<td align="left">14</td>
+</tr>
+<tr class="even">
+<td align="left">_______________________</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">Column type frequency:</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left">character</td>
+<td align="left">4</td>
+</tr>
+<tr class="odd">
+<td align="left">Date</td>
+<td align="left">3</td>
+</tr>
+<tr class="even">
+<td align="left">list</td>
+<td align="left">1</td>
+</tr>
+<tr class="odd">
+<td align="left">logical</td>
+<td align="left">5</td>
+</tr>
+<tr class="even">
+<td align="left">numeric</td>
+<td align="left">1</td>
+</tr>
+<tr class="odd">
+<td align="left">________________________</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left">Group variables</td>
+<td align="left">None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: character</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">min</th>
+<th align="right">max</th>
+<th align="right">empty</th>
+<th align="right">n_unique</th>
+<th align="right">whitespace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Name</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">2</td>
+<td align="right">30</td>
+<td align="right">0</td>
+<td align="right">495</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">Title</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">2</td>
+<td align="right">50</td>
+<td align="right">0</td>
+<td align="right">495</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="left">Domain</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">26</td>
+<td align="right">21</td>
+<td align="right">465</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">Description</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">174</td>
+<td align="right">1086</td>
+<td align="right">0</td>
+<td align="right">495</td>
+<td align="right">0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: Date</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="left">min</th>
+<th align="left">max</th>
+<th align="left">median</th>
+<th align="right">n_unique</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">BreachDate</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="left">2007-07-12</td>
+<td align="left">2020-11-04</td>
+<td align="left">2016-08-15</td>
+<td align="right">405</td>
+</tr>
+<tr class="even">
+<td align="left">AddedDate</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="left">2013-11-30</td>
+<td align="left">2020-12-06</td>
+<td align="left">2017-11-03</td>
+<td align="right">388</td>
+</tr>
+<tr class="odd">
+<td align="left">ModifiedDate</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="left">2013-12-04</td>
+<td align="left">2020-12-06</td>
+<td align="left">2018-01-15</td>
+<td align="right">373</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: list</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">n_unique</th>
+<th align="right">min_length</th>
+<th align="right">max_length</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">DataClasses</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">246</td>
+<td align="right">1</td>
+<td align="right">25</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: logical</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">mean</th>
+<th align="left">count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">IsVerified</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0.94</td>
+<td align="left">TRU: 463, FAL: 32</td>
+</tr>
+<tr class="even">
+<td align="left">IsFabricated</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0.00</td>
+<td align="left">FAL: 493, TRU: 2</td>
+</tr>
+<tr class="odd">
+<td align="left">IsSensitive</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0.07</td>
+<td align="left">FAL: 459, TRU: 36</td>
+</tr>
+<tr class="even">
+<td align="left">IsRetired</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0.00</td>
+<td align="left">FAL: 494, TRU: 1</td>
+</tr>
+<tr class="odd">
+<td align="left">IsSpamList</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0.02</td>
+<td align="left">FAL: 484, TRU: 11</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: numeric</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">skim_variable</th>
+<th align="right">n_missing</th>
+<th align="right">complete_rate</th>
+<th align="right">mean</th>
+<th align="right">sd</th>
+<th align="right">p0</th>
+<th align="right">p25</th>
+<th align="right">p50</th>
+<th align="right">p75</th>
+<th align="right">p100</th>
+<th align="left">hist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">PwnCount</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">21161140</td>
+<td align="right">81252585</td>
+<td align="right">858</td>
+<td align="right">289013</td>
+<td align="right">1107789</td>
+<td align="right">6668559</td>
+<td align="right">772904991</td>
+<td align="left">▇▁▁▁▁</td>
+</tr>
+</tbody>
+</table>
+<p>We will obtain list of the types of stolen data. We see examples such as: Email addresses, IP addresses, names, password phone numbers, physical addresses, credit cards, biometric data to more spurious data such as eating habits, sexual fetishes, and Astrological signs.</p>
+<pre class="r"><code>data_breach %&gt;%
+  select(DataClasses)%&gt;%
+  unnest(cols = c(DataClasses)) %&gt;%
+  unique() %&gt;%
+  rmarkdown::paged_table()</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["DataClasses"],"name":[1],"type":["chr"],"align":["left"]}],"data":[{"1":"Email addresses"},{"1":"IP addresses"},{"1":"Names"},{"1":"Passwords"},{"1":"Phone numbers"},{"1":"Physical addresses"},{"1":"Usernames"},{"1":"Device information"},{"1":"Dates of birth"},{"1":"Genders"},{"1":"Geographic locations"},{"1":"Employers"},{"1":"Job titles"},{"1":"Social media profiles"},{"1":"Password hints"},{"1":"Races"},{"1":"Relationship statuses"},{"1":"Sexual orientations"},{"1":"Spoken languages"},{"1":"Partial dates of birth"},{"1":"Website activity"},{"1":"Address book contacts"},{"1":"Apps installed on devices"},{"1":"Cellular network names"},{"1":"IMEI numbers"},{"1":"IMSI numbers"},{"1":"Profile photos"},{"1":"Email messages"},{"1":"Homepage URLs"},{"1":"Instant messenger identities"},{"1":"Salutations"},{"1":"Ages"},{"1":"Auth tokens"},{"1":"Employment statuses"},{"1":"Marital statuses"},{"1":"Private messages"},{"1":"Browser user agent details"},{"1":"Bios"},{"1":"Avatars"},{"1":"Ethnicities"},{"1":"Payment histories"},{"1":"Security questions and answers"},{"1":"Account balances"},{"1":"Beauty ratings"},{"1":"Car ownership statuses"},{"1":"Drinking habits"},{"1":"Education levels"},{"1":"Home ownership statuses"},{"1":"Income levels"},{"1":"Personal descriptions"},{"1":"Personal interests"},{"1":"Physical attributes"},{"1":"Smoking habits"},{"1":"Credit cards"},{"1":"Survey results"},{"1":"Career levels"},{"1":"User website URLs"},{"1":"Purchases"},{"1":"Historical passwords"},{"1":"Financial transactions"},{"1":"Taxation records"},{"1":"Payment methods"},{"1":"Family members' names"},{"1":"Biometric data"},{"1":"Passport numbers"},{"1":"Buying preferences"},{"1":"Charitable donations"},{"1":"Credit status information"},{"1":"Family structure"},{"1":"Financial investments"},{"1":"Net worths"},{"1":"Political donations"},{"1":"Social security numbers"},{"1":"Eating habits"},{"1":"Partial credit card data"},{"1":"Deceased date"},{"1":"Government issued IDs"},{"1":"Utility bills"},{"1":"Job applications"},{"1":"Occupations"},{"1":"Religions"},{"1":"Purchasing habits"},{"1":"Vehicle details"},{"1":"Sexual fetishes"},{"1":"School grades (class levels)"},{"1":"Encrypted keys"},{"1":"Mnemonic phrases"},{"1":"Professional skills"},{"1":"Years of professional experience"},{"1":"Bank account numbers"},{"1":"Social connections"},{"1":"Time zones"},{"1":"Health insurance information"},{"1":"Personal health data"},{"1":"Nicknames"},{"1":"Nationalities"},{"1":"Recovery email addresses"},{"1":"Living costs"},{"1":"Mothers maiden names"},{"1":"Places of birth"},{"1":"Spouses names"},{"1":"Deceased statuses"},{"1":"Astrological signs"},{"1":"Drug habits"},{"1":"Fitness levels"},{"1":"Parenting plans"},{"1":"Political views"},{"1":"Travel habits"},{"1":"Work habits"},{"1":"Device usage tracking data"},{"1":"Age groups"},{"1":"Chat logs"},{"1":"User statuses"},{"1":"Home loan information"},{"1":"Customer feedback"},{"1":"PINs"},{"1":"Credit card CVV"},{"1":"Password strengths"},{"1":"Audio recordings"},{"1":"Browsing histories"},{"1":"Photos"},{"1":"SMS messages"},{"1":"Support tickets"},{"1":"Customer interactions"},{"1":"MAC addresses"},{"1":"Reward program balances"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<pre class="r"><code>data_breach %&gt;%
+  select(DataClasses)%&gt;%
+  unnest(cols = c(DataClasses)) %&gt;%
+  count(DataClasses,sort=TRUE)  %&gt;%
+  slice_max(order_by = n,n=10) %&gt;%
+  ggplot(aes(x=n,y=reorder(DataClasses,n)))+
+  geom_col(fill=&quot;#009732&quot;)+
+  geom_text(aes(label=n),hjust=-.1,col=&quot;#2CE71E&quot;)+
+  scale_x_continuous(expand= expansion(c(0,0.1) ))+
+  labs(title=&quot;Emails and passwords were the most common data stolen&quot;,
+       subtitle=&quot;Most common data stolen from major data breeches&quot;,
+       x=&quot;Number of Breaches&quot;,y=&quot;Data&quot;,
+       caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(plot.background = element_rect(fill=&quot;black&quot;),
+        panel.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour=&quot;#2CE71E&quot;,family=&quot;Rockwell&quot;),
+        axis.text = element_text(colour=&quot;#2CE71E&quot;,size=10),
+        panel.grid = element_blank(),
+        axis.ticks = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="700" /></p>
+<p>Below we see a word cloud of the most common</p>
+<pre class="r"><code>set.seed(15)
+data_breach %&gt;%
+  select(DataClasses)%&gt;%
+  unnest(cols = c(DataClasses)) %&gt;%
+  count(DataClasses,sort=TRUE)  %&gt;%
+  #mutate(DataClasses=str_replace_all(DataClasses,&quot; &quot;,&quot;-&quot;)) %&gt;% 
+# wordcloud2(color=sample( c(&quot;#00FF41&quot;,&quot;#7FE706&quot;,&quot;#48A70B&quot;,&quot;#A4FF00&quot;,&quot;#66FF01&quot;,&quot;#2CE71E&quot;,&quot;#0AAF30&quot;),126,replace=TRUE), backgroundColor =&quot;black&quot;,rotateRatio=0,size=0.5,fontFamily=&quot;Rockwell&quot;)
+   wordcloud2(color=&#39;random-light&#39;, backgroundColor = &quot;black&quot;,rotateRatio=0,size=0.5,fontFamily=&quot;Rockwell&quot;)</code></pre>
+<div id="htmlwidget-1" style="width:960px;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"word":["Email addresses","Passwords","Usernames","IP addresses","Names","Dates of birth","Phone numbers","Physical addresses","Genders","Website activity","Geographic locations","Private messages","Social media profiles","Employers","Job titles","Purchases","Spoken languages","Device information","Security questions and answers","Partial credit card data","Browser user agent details","Email messages","Government issued IDs","Income levels","Instant messenger identities","Marital statuses","Account balances","Ethnicities","Payment histories","Auth tokens","Avatars","Family structure","Physical attributes","Bios","Credit cards","Education levels","Home ownership statuses","Salutations","Sexual orientations","Social connections","Time zones","User website URLs","Credit status information","Historical passwords","Passport numbers","Religions","Drinking habits","Family members' names","Occupations","Partial dates of birth","Personal descriptions","Profile photos","Relationship statuses","Age groups","Ages","Bank account numbers","Chat logs","Financial investments","Financial transactions","Homepage URLs","IMEI numbers","Nationalities","Net worths","Nicknames","Personal interests","PINs","Political views","Sexual fetishes","Smoking habits","SMS messages","Social security numbers","Address book contacts","Apps installed on devices","Astrological signs","Audio recordings","Beauty ratings","Biometric data","Browsing histories","Buying preferences","Car ownership statuses","Career levels","Cellular network names","Charitable donations","Credit card CVV","Customer feedback","Customer interactions","Deceased date","Deceased statuses","Device usage tracking data","Drug habits","Eating habits","Employment statuses","Encrypted keys","Fitness levels","Health insurance information","Home loan information","IMSI numbers","Job applications","Living costs","MAC addresses","Mnemonic phrases","Mothers maiden names","Parenting plans","Password hints","Password strengths","Payment methods","Personal health data","Photos","Places of birth","Political donations","Professional skills","Purchasing habits","Races","Recovery email addresses","Reward program balances","School grades (class levels)","Spouses names","Support tickets","Survey results","Taxation records","Travel habits","User statuses","Utility bills","Vehicle details","Work habits","Years of professional experience"],"freq":[490,408,288,221,204,126,115,94,84,76,65,24,22,20,19,14,14,11,11,10,9,8,8,8,8,8,7,7,7,6,6,6,6,5,5,5,5,5,5,5,5,5,4,4,4,4,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"fontFamily":"Rockwell","fontWeight":"bold","color":"random-light","minSize":0,"weightFactor":0.183673469387755,"backgroundColor":"black","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+<pre class="r"><code>data_breach %&gt;% 
+  select(Name,PwnCount,BreachDate) %&gt;% 
+  arrange(-PwnCount)%&gt;%
+  #filter(PwnCount &gt; 1e6) %&gt;% 
+  ggplot(aes(x=BreachDate,y=PwnCount,col=PwnCount))+
+  geom_point(size=2)+
+  scale_x_date(date_labels = &quot;%Y&quot;,date_breaks = &quot;2 years&quot;)+
+  scale_y_continuous(labels = scales::label_number_si())+
+  scale_color_viridis_c(option=&quot;B&quot;,begin=0.2,end=1)+
+  labs(title=&quot;The number of substantial data breaches has increased over recent years&quot;,subtitle = &quot;The number of accounts affected in a data breach over time&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+       # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        legend.position = &quot;none&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code>data_breach %&gt;%
+  mutate(Substantial = if_else(PwnCount&gt;=1e7,TRUE,FALSE  ), 
+         breachyear = lubridate::year(BreachDate)) %&gt;%
+  filter(Substantial == TRUE) %&gt;% 
+  group_by(breachyear)%&gt;%
+  count(Substantial) %&gt;%
+  ggplot(aes(x=breachyear,y=n))+
+  geom_col(fill=&quot;#AA1016&quot;)+
+  geom_text(aes(label=n),vjust=-.5,col=&quot;white&quot;)+
+  scale_x_continuous(breaks= seq(2008,2020,1))+
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,24) )+ 
+  labs(title=&quot;Though the number of massive data breaches peaked in 2018...&quot;,
+       subtitle = &quot;Plot showing number of breaches affecting at least &lt;span style = &#39;color: #AA1016&#39;&gt;**10 million people**&lt;/span&gt;. \n \nWhile the number of massive data breaches has decreased from 2018,&lt;br&gt;online users needs to remain cautious as the number of massive breaches is still higher&lt;br&gt; than it was in the first half of the previous decade.&quot;,
+       y=&quot;Number of breaches&quot;,x=&quot;Year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+       # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
+       axis.ticks = element_blank(),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        legend.position = &quot;none&quot;,
+        plot.title = element_text(size=15,face = &quot;bold&quot;),
+       plot.title.position = &quot;plot&quot;,
+        plot.subtitle = ggtext::element_markdown())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<pre class="r"><code>data_breach %&gt;%
+  mutate(Substantial = if_else(PwnCount&gt;=1e6,TRUE,FALSE  ), #was 1e7
+         breachyear = lubridate::year(BreachDate)) %&gt;%
+  filter(Substantial == TRUE) %&gt;% 
+  group_by(breachyear)%&gt;%
+  count(Substantial) %&gt;%
+  ggplot(aes(x=breachyear,y=n))+
+  geom_col(fill=&quot;#EA7700&quot;)+
+  geom_text(aes(label=n),vjust=-.5,col=&quot;white&quot;)+
+  scale_x_continuous(breaks= seq(2007,2020,1))+
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,49) )+ #was 24
+  labs(title=&quot;...the number of big breaches is still increasing&quot;,
+       subtitle = &quot;Plot showing number of breaches affecting at least &lt;span style = &#39;color:#EA7700;&#39;&gt;**one million people**&lt;/span&gt;. \n \nThe number of large data breaches has steadily been increasing over the years.&lt;br&gt;Users must remain vigilant in making sure they use secure passwords and accounts.&quot;,
+       y=&quot;Number of breaches&quot;,x=&quot;Year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+        # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
+        axis.ticks = element_blank(),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        legend.position = &quot;none&quot;,
+        plot.title = element_text(face = &quot;bold&quot;, size = 15),
+        plot.title.position = &quot;plot&quot;,
+        plot.subtitle = ggtext::element_markdown())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<pre class="r"><code>data_breach %&gt;%
+  mutate(Substantial = if_else(PwnCount&gt;=1000,TRUE,FALSE  ), #was 1e7
+         breachyear = lubridate::year(BreachDate)) %&gt;%
+  filter(Substantial == TRUE) %&gt;% 
+  group_by(breachyear)%&gt;%
+  count(Substantial) %&gt;%
+  ggplot(aes(x=breachyear,y=n))+
+  geom_col(fill=&quot;#E5BE00&quot;)+
+  geom_text(aes(label=n),vjust=-.5,col=&quot;white&quot;)+
+  scale_x_continuous(breaks= seq(2007,2020,1))+
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,99) )+ #was 24
+  labs(title=&quot;The number of data breaches peaked in 2016&quot;,
+       subtitle = &quot;Plot showing number of breaches affecting at least &lt;span style = &#39;color:#E5BE00;&#39;&gt;**one thousand people**&lt;/span&gt;. \n \nThe number of data breache rose quite quickly from just one large data breech in 2007 &lt;br&gt;  to over 90 in less then a decade, but there has been a decrease since the peak in 2016.&quot;,
+       y=&quot;Number of breaches&quot;,x=&quot;Year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+        # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
+        axis.ticks = element_blank(),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        legend.position = &quot;none&quot;,
+        plot.title = element_text(face = &quot;bold&quot;, size = 15),
+        plot.title.position = &quot;plot&quot;,
+        plot.subtitle = ggtext::element_markdown())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<pre class="r"><code>data_breach %&gt;% 
+  group_by(IsVerified,IsFabricated,IsSensitive,IsRetired,IsSpamList) %&gt;% 
+  count(sort=TRUE,name = &quot;Number&quot;)</code></pre>
+<pre><code>## # A tibble: 7 x 6
+## # Groups:   IsVerified, IsFabricated, IsSensitive, IsRetired, IsSpamList [7]
+##   IsVerified IsFabricated IsSensitive IsRetired IsSpamList Number
+##   &lt;lgl&gt;      &lt;lgl&gt;        &lt;lgl&gt;       &lt;lgl&gt;     &lt;lgl&gt;       &lt;int&gt;
+## 1 TRUE       FALSE        FALSE       FALSE     FALSE         421
+## 2 TRUE       FALSE        TRUE        FALSE     FALSE          30
+## 3 FALSE      FALSE        FALSE       FALSE     FALSE          26
+## 4 TRUE       FALSE        FALSE       FALSE     TRUE           11
+## 5 FALSE      FALSE        TRUE        FALSE     FALSE           4
+## 6 FALSE      TRUE         TRUE        FALSE     FALSE           2
+## 7 TRUE       FALSE        FALSE       TRUE      FALSE           1</code></pre>
+<pre class="r"><code>data_breach %&gt;%
+  filter(IsSensitive==TRUE) %&gt;% 
+  select(Title,BreachDate,PwnCount) %&gt;%
+  slice_max(order_by = PwnCount,n=10) %&gt;% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill=&quot;#480FF0&quot;,col=&quot;#906DF6&quot;)+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = &quot;M&quot;) ),hjust=-0.1,col=&quot;white&quot;)+
+  scale_x_continuous(labels=scales::label_number_si(),limits=c(0,1.9e8),expand = c(0,0))+
+  #scale_y_discrete(expand=expansion(0,0))+
+  labs(title=&quot;The biggest senstive data breaches&quot;,subtitle=&quot;A senstive breach can have an adverse affects on site users if discovered&quot;,
+       x=&quot;Number of Accounts Affected&quot;,y=&quot;Site&quot;,caption=&quot;Sorce: haveibeenpwned.com&quot;)+
+    theme(panel.background  = element_rect(fill=&quot;black&quot;),
+    panel.grid = element_blank(),
+ #  panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+    panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+    plot.background = element_rect(fill=&quot;black&quot;),
+    text = element_text(colour = &quot;white&quot;),
+    axis.text =element_text(colour = &quot;white&quot;), 
+    plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>The biggest data breaches</p>
+<pre class="r"><code>data_breach %&gt;% 
+  #unnest(DataClasses) %&gt;%
+  #filter(DataClasses == &quot;Passwords&quot;) %&gt;%
+  slice_max(order_by=PwnCount,n=10) %&gt;% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill=&quot;#2915EA&quot;,col=&quot;#7161ed&quot;)+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = &quot;M&quot;) ) ,col=&quot;white&quot;,hjust=-.1)+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+    scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
+  #scale_y_discrete(expand=expansion(0,0))+
+  labs(title=&quot;The biggest data breaches known so far&quot;,subtitle=&quot;Billions of accounts containing personal details such as email adresses and passwords have been leaked.\nThis list only contains the known breaches, there is no telling how many unnoticed major data breaches have occured...&quot;,
+       x=&quot;Number of Accounts Affected&quot;,y=&quot;Data Breach Source&quot;,caption=&quot;Sorce: haveibeenpwned.com&quot;)+
+    theme(panel.background  = element_rect(fill=&quot;black&quot;),
+    panel.grid = element_blank(),
+ #  panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+    panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+    plot.background = element_rect(fill=&quot;black&quot;),
+    text = element_text(colour = &quot;white&quot;),
+    axis.text.y =element_text(colour = &quot;white&quot;), 
+    plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="864" /></p>
+<p>Which were biggest data breaches that contained leaked password details?</p>
+<pre class="r"><code>data_breach %&gt;% 
+  unnest(DataClasses) %&gt;%
+  filter(DataClasses == &quot;Passwords&quot;) %&gt;%
+  slice_max(order_by=PwnCount,n=15) %&gt;% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill=&quot;#0856F7&quot;,col=&quot;#3675f9&quot;)+
+    geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = &quot;M&quot;) ) ,col=&quot;white&quot;,hjust=-.1)+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+    scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
+  #scale_y_discrete(expand=expansion(0,0))+
+  labs(title=&quot;The data breaches with the most passwords leaked&quot;,subtitle=&quot;Billions of passwords have been leaked&quot;,
+       x=&quot;Number of Accounts Affected&quot;,y=&quot;Data Breach Source&quot;,caption=&quot;Sorce: haveibeenpwned.com&quot;)+
+    theme(panel.background  = element_rect(fill=&quot;black&quot;),
+    panel.grid = element_blank(),
+ #  panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+    panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+    plot.background = element_rect(fill=&quot;black&quot;),
+    text = element_text(colour = &quot;grey40&quot;),
+    plot.title = element_text(colour=&quot;white&quot;),
+    plot.subtitle = element_text(colour=&quot;white&quot;),
+    axis.text.y =element_text(colour = &quot;white&quot;), 
+    plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<pre class="r"><code>data_breach %&gt;% 
+  mutate( dow =  lubridate::wday(BreachDate,label=TRUE,week_start=1)) %&gt;% 
+  group_by(dow) %&gt;% 
+  count() %&gt;% 
+  ggplot(aes(x=dow,y=n))+
+  geom_col(fill=&quot;dodgerblue4&quot;)+
+  geom_text(aes(label=n),vjust=-.4)+
+  theme_minimal()+
+  labs(title=&quot;Breaches on a Saturday and Tuestday seem to be the most common&quot;,subtitle=&quot;Saturday seems  the least common&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
+       x=&quot;Day of Week&quot;,y=&quot;Number of Breaches&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<pre class="r"><code>data_breach %&gt;% 
+  mutate( month =  lubridate::month(BreachDate,label=TRUE)) %&gt;% 
+  group_by(month) %&gt;% 
+  count() %&gt;% 
+  ggplot(aes(x=month,y=n))+
+  geom_col(fill=&quot;dodgerblue4&quot;)+
+  geom_text(aes(label=n),vjust=-.4)+
+  theme_minimal()+
+  labs(title=&quot;Summer seems to be the most common time of year for breaches to occur&quot;,subtitle=&quot;January and December are not far behind however&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
+       x=&quot;Month&quot;,y=&quot;Number of Breaches&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
