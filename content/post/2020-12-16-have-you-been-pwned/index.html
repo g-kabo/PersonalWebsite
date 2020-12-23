@@ -11,6 +11,10 @@ topics: []
 
 <link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
 <script src="index_files/anchor-sections/anchor-sections.js"></script>
+<script src="index_files/kePrint/kePrint.js"></script>
+<link href="index_files/lightable/lightable.css" rel="stylesheet" />
+<link href="index_files/bsTable/bootstrapTable.min.css" rel="stylesheet" />
+<script src="index_files/bsTable/bootstrapTable.js"></script>
 <link href="index_files/pagedtable/css/pagedtable.css" rel="stylesheet" />
 <script src="index_files/pagedtable/js/pagedtable.js"></script>
 <script src="index_files/htmlwidgets/htmlwidgets.js"></script>
@@ -20,295 +24,507 @@ topics: []
 <script src="index_files/wordcloud2-binding/wordcloud2.js"></script>
 
 
+<p align="center">
+<img src="/images/cybersec.jpg" width="800" height="500">
+</p>
+<p>To “pwn” someone means that you have effectively overpowered or dominated that individual. It used to be most commonly used when someone was beaten in a video game, but now it refers to when a nefarious cyber-attack has occurred and someone has had their personal information stolen.</p>
+<p>Recently, there was <a href="https://www.bbc.co.uk/news/technology-55363828">news</a> of a <a href="https://en.wikipedia.org/wiki/2020_United_States_federal_government_data_breach">major cyber-attack</a> on several US federal government agencies. Known as the ‘Sunburst Breach’, it attacked various organisations by going through a supply chain, which in this case was a network management and monitoring tool from the company Solarwinds which has over 300,000 public and private customers. The attackers were able to gain access to private emails and other sensitive documents. This affected over 18,000 customers, some of which include:</p>
+<ul>
+<li><p>The US Treasury Department</p></li>
+<li><p>The US Department of Homeland Security</p></li>
+<li><p>The US Department of State</p></li>
+<li><p>The US Department of Energy</p></li>
+<li><p>Cybersecurity and Infrastructure Agency</p></li>
+<li><p>Microsoft</p></li>
+<li><p>And many more…</p></li>
+</ul>
+<p>This is one of many cyber-attacks that have occurred in recent years. As we live in an increasingly technological world, there will be an increasing number of vulnerabilities that malicious actors would wish to exploit; this can have a huge negative impact on not only on enterprises but to ordinary people as well, as important and sensitive information can be used by the attackers for their own benefit.</p>
+<p>So we will investigate the questions of:</p>
+<ul>
+<li><p><strong>What type of information is being stolen?</strong></p></li>
+<li><p><strong>How has the number of data breaches changed over time?</strong></p></li>
+<li><p><strong>What were the scales of breaches, and did they also change over time?</strong></p></li>
+</ul>
+<p>We will use the site <a href="https://haveibeenpwned.com/">haveibeenpwned</a> to answers these questions. This is a site that contains a list of all emails and passwords that have been compromised from a confirmed data breach, and users are able to input either an email address or password to find out if that information has been leaked.</p>
+<p>The site is not an exhaustive list of all breaches that have happened as there are many that are undetected or unannounced, but the site does contain the subset of publicly announced breaches. To learn more about the site, you can visit the <a href="https://haveibeenpwned.com/FAQs">FAQs</a> section of the site.</p>
+<div id="the-data" class="section level1">
+<h1>The data</h1>
+<p>These are the libraries I will use in R</p>
 <pre class="r"><code>library(tidyverse)
-library(extrafont)
 library(ggtext)
 library(wordcloud2)
-#loadfonts(device = &quot;win&quot;)</code></pre>
-<p>Today we will look at the data from major hacks!</p>
-<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam ac nisi laoreet, pharetra diam ut, tincidunt eros. Interdum et malesuada fames ac ante ipsum primis in faucibus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nulla volutpat ipsum et tortor rutrum, iaculis sagittis lacus rutrum. Vivamus enim lorem, sodales eget dolor eu, lacinia blandit mi. Morbi id cursus lectus. In mi sem, volutpat quis enim nec, congue viverra ante. Integer placerat placerat urna, vel congue ipsum malesuada sit amet. Mauris bibendum ex quis metus posuere ultrices. Curabitur aliquam ex id enim egestas accumsan. Etiam aliquam ligula ut elit rhoncus interdum. Aenean nec eros pulvinar, faucibus velit quis, pellentesque eros.</p>
-<p>Vestibulum non iaculis urna, eget sagittis mauris. Nam cursus rutrum quam id porta. Cras consequat varius metus, a lacinia ligula sollicitudin eu. Nullam ex massa, sagittis eu elementum id, laoreet sed massa. Proin vitae velit ut magna facilisis facilisis eu fringilla felis. Etiam eleifend feugiat neque. Sed placerat orci ut eros rutrum placerat. Nunc felis purus, volutpat id cursus ac, faucibus ut tortor. Aliquam neque est, fermentum ut diam a, aliquet porta risus. Cras sit amet suscipit elit.</p>
-<p>Nullam feugiat velit at nibh condimentum accumsan. Mauris eu fringilla libero, nec tempor lectus. Suspendisse eu sapien elementum, maximus ipsum sed, hendrerit tellus. Nullam et lacus iaculis, sodales nibh id, ultrices felis. Fusce vulputate quis ex at volutpat. Ut quis urna non est malesuada sodales sed non quam. Suspendisse potenti. Suspendisse nec erat scelerisque, lobortis sapien eget, tristique ex. In sit amet mi laoreet, bibendum nunc quis, sodales ligula. Nunc vitae ligula ut dolor porttitor laoreet. Curabitur sagittis at mauris non vestibulum. Donec tristique ullamcorper risus, quis tincidunt lacus hendrerit id. Fusce vitae facilisis ligula, ac bibendum lorem.</p>
+#loadfonts(device = &quot;win&quot;)
+
+options(kableExtra.html.bsTable = TRUE) #Allows the use of nice looking tables for kable</code></pre>
+<p>Here I use the API to obtain the data, the site also contains information on the attributes in the provided <a href="https://haveibeenpwned.com/API/v2#BreachModel">data dicitionary</a>.</p>
 <pre class="r"><code>url &lt;-  &quot;https://haveibeenpwned.com/api/v2/breaches&quot;
 
 raw_result  &lt;- httr::GET(url)
+
 data_breaches &lt;- httr::content(raw_result, as = &quot;text&quot;) %&gt;%
   jsonlite::fromJSON()
 
 data_breach &lt;-  data_breaches %&gt;% 
-  select(-LogoPath) %&gt;%
-  mutate(across(ends_with(&quot;Date&quot;), as.Date))
-  #mutate(ends_with(&quot;Date&quot;) = as.Date.character(ends_with(&quot;Date&quot;))   )</code></pre>
-<pre class="r"><code>skimr::skim(data_breach)</code></pre>
-<table>
-<caption><span id="tab:unnamed-chunk-3">Table 1: </span>Data summary</caption>
-<tbody>
-<tr class="odd">
-<td align="left">Name</td>
-<td align="left">data_breach</td>
-</tr>
-<tr class="even">
-<td align="left">Number of rows</td>
-<td align="left">495</td>
-</tr>
-<tr class="odd">
-<td align="left">Number of columns</td>
-<td align="left">14</td>
-</tr>
-<tr class="even">
-<td align="left">_______________________</td>
-<td align="left"></td>
-</tr>
-<tr class="odd">
-<td align="left">Column type frequency:</td>
-<td align="left"></td>
-</tr>
-<tr class="even">
-<td align="left">character</td>
-<td align="left">4</td>
-</tr>
-<tr class="odd">
-<td align="left">Date</td>
-<td align="left">3</td>
-</tr>
-<tr class="even">
-<td align="left">list</td>
-<td align="left">1</td>
-</tr>
-<tr class="odd">
-<td align="left">logical</td>
-<td align="left">5</td>
-</tr>
-<tr class="even">
-<td align="left">numeric</td>
-<td align="left">1</td>
-</tr>
-<tr class="odd">
-<td align="left">________________________</td>
-<td align="left"></td>
-</tr>
-<tr class="even">
-<td align="left">Group variables</td>
-<td align="left">None</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Variable type: character</strong></p>
-<table>
+  select(-LogoPath,-Description) %&gt;%
+  mutate(across(ends_with(&quot;Date&quot;), as.Date))</code></pre>
+<p>We have 495 data breaches in this dataset, with 14 attributes. The attributes of most interest to us are:</p>
+<ul>
+<li><p><strong><code>name</code></strong> and <strong><code>title</code></strong> - refers to the source of the data breach.</p></li>
+<li><p><strong><code>BreachDate</code></strong> - refers to the date the breach occurred, it should be noted that breaches are frequently discovered after some time has passed since the initial breach has occurred.</p></li>
+<li><p><strong><code>PwnCount</code></strong> - the number of accounts affected in a data breach.</p></li>
+<li><p><strong><code>DataClasses</code></strong> - contains a list of the type of data stolen, this can include types like e-mails and passwords.</p></li>
+<li><p><strong><code>IsVerified</code></strong> - if the breach has been deemed legitimate.</p></li>
+<li><p><strong><code>IsFabricated</code></strong> - if the breach contains lots of fake date.</p></li>
+<li><p><strong><code>IsSensitive</code></strong> - if the breach contains information on a user that can have adverse reaction if they were discovered to be on the site. An example of a site that had a sensitive data breach is Ashley Madison - an online dating service for people in relationships or marriages. Here emails, names, home addresses, credit card information and other personal identifiable information was leaked.</p></li>
+<li><p><strong><code>IsSpamList</code></strong> - if the breach contains large amounts of personnel identifiable information used for the purpose of targeting spam.</p></li>
+<li><p><strong><code>IsRetired</code></strong> - a breach permanently deleted from the site. But there is only one instance of this in the dataset, so we won’t be worrying about this attribute.</p></li>
+</ul>
+<p>We can count up the boolean attributes to get an idea of what type of breaches have occurred.</p>
+<pre class="r"><code>data_breach %&gt;% 
+  #group_by(IsVerified,IsFabricated,IsSensitive,IsRetired,IsSpamList) %&gt;%  
+  group_by(across(starts_with(&quot;IS&quot;))) %&gt;%  # easier way than typing all of the above line
+  count(sort=TRUE,name = &quot;Number of Breaches&quot;) %&gt;%
+  kableExtra::kbl(caption = &quot;The type of breaches&quot;)%&gt;% 
+  kableExtra::kable_styling(bootstrap_options = c(&quot;striped&quot;,&quot;condensed&quot;),font_size = 12)</code></pre>
+<table class="table table-striped table-condensed" style="font-size: 12px; margin-left: auto; margin-right: auto;">
+<caption style="font-size: initial !important;">
+<span id="tab:unnamed-chunk-3">Table 1: </span>The type of breaches
+</caption>
 <thead>
-<tr class="header">
-<th align="left">skim_variable</th>
-<th align="right">n_missing</th>
-<th align="right">complete_rate</th>
-<th align="right">min</th>
-<th align="right">max</th>
-<th align="right">empty</th>
-<th align="right">n_unique</th>
-<th align="right">whitespace</th>
+<tr>
+<th style="text-align:left;">
+IsVerified
+</th>
+<th style="text-align:left;">
+IsFabricated
+</th>
+<th style="text-align:left;">
+IsSensitive
+</th>
+<th style="text-align:left;">
+IsRetired
+</th>
+<th style="text-align:left;">
+IsSpamList
+</th>
+<th style="text-align:right;">
+Number of Breaches
+</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
-<td align="left">Name</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">2</td>
-<td align="right">30</td>
-<td align="right">0</td>
-<td align="right">495</td>
-<td align="right">0</td>
+<tr>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+422
+</td>
 </tr>
-<tr class="even">
-<td align="left">Title</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">2</td>
-<td align="right">50</td>
-<td align="right">0</td>
-<td align="right">495</td>
-<td align="right">0</td>
+<tr>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+30
+</td>
 </tr>
-<tr class="odd">
-<td align="left">Domain</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">0</td>
-<td align="right">26</td>
-<td align="right">21</td>
-<td align="right">465</td>
-<td align="right">0</td>
+<tr>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+26
+</td>
 </tr>
-<tr class="even">
-<td align="left">Description</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">174</td>
-<td align="right">1086</td>
-<td align="right">0</td>
-<td align="right">495</td>
-<td align="right">0</td>
+<tr>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:right;">
+11
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+4
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+2
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:right;">
+1
+</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Variable type: Date</strong></p>
-<table>
+<p>We see what the vast majority of our data are from breaches that are verified, not fabricated, not sensitive, and is not a spam list. The second most common were verified and sensitive data breaches. The least common breach was verified and retired, the second least common type of breach were unverified, fabricated and sensitive data.</p>
+<pre class="r"><code>data_breach %&gt;% 
+select(Title,BreachDate,PwnCount,DataClasses,IsVerified,IsFabricated,IsSensitive,IsSpamList) %&gt;% 
+  arrange(desc(BreachDate)) %&gt;% 
+  slice_head(n=8) %&gt;% 
+  kableExtra::kbl(caption = &quot;The eight most recent data breaches&quot;,
+                  format.args = list(big.mark = &quot;,&quot;)
+                  )%&gt;% 
+  kableExtra::kable_styling(bootstrap_options = c(&quot;striped&quot;,&quot;condensed&quot;),font_size = 12)</code></pre>
+<table class="table table-striped table-condensed" style="font-size: 12px; margin-left: auto; margin-right: auto;">
+<caption style="font-size: initial !important;">
+<span id="tab:table1">Table 2: </span>The eight most recent data breaches
+</caption>
 <thead>
-<tr class="header">
-<th align="left">skim_variable</th>
-<th align="right">n_missing</th>
-<th align="right">complete_rate</th>
-<th align="left">min</th>
-<th align="left">max</th>
-<th align="left">median</th>
-<th align="right">n_unique</th>
+<tr>
+<th style="text-align:left;">
+Title
+</th>
+<th style="text-align:left;">
+BreachDate
+</th>
+<th style="text-align:right;">
+PwnCount
+</th>
+<th style="text-align:left;">
+DataClasses
+</th>
+<th style="text-align:left;">
+IsVerified
+</th>
+<th style="text-align:left;">
+IsFabricated
+</th>
+<th style="text-align:left;">
+IsSensitive
+</th>
+<th style="text-align:left;">
+IsSpamList
+</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
-<td align="left">BreachDate</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="left">2007-07-12</td>
-<td align="left">2020-11-04</td>
-<td align="left">2016-08-15</td>
-<td align="right">405</td>
+<tr>
+<td style="text-align:left;">
+Cit0day
+</td>
+<td style="text-align:left;">
+2020-11-04
+</td>
+<td style="text-align:right;">
+226,883,414
+</td>
+<td style="text-align:left;">
+Email addresses, Passwords
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
 </tr>
-<tr class="even">
-<td align="left">AddedDate</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="left">2013-11-30</td>
-<td align="left">2020-12-06</td>
-<td align="left">2017-11-03</td>
-<td align="right">388</td>
+<tr>
+<td style="text-align:left;">
+Wongnai
+</td>
+<td style="text-align:left;">
+2020-10-28
+</td>
+<td style="text-align:right;">
+3,924,454
+</td>
+<td style="text-align:left;">
+Dates of birth , Email addresses , Geographic locations , IP addresses , Names , Passwords , Phone numbers , Social media profiles
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
 </tr>
-<tr class="odd">
-<td align="left">ModifiedDate</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="left">2013-12-04</td>
-<td align="left">2020-12-06</td>
-<td align="left">2018-01-15</td>
-<td align="right">373</td>
+<tr>
+<td style="text-align:left;">
+Animal Jam
+</td>
+<td style="text-align:left;">
+2020-10-12
+</td>
+<td style="text-align:right;">
+7,104,998
+</td>
+<td style="text-align:left;">
+Dates of birth , Email addresses , Genders , IP addresses , Names , Passwords , Physical addresses, Usernames
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Chowbus
+</td>
+<td style="text-align:left;">
+2020-10-05
+</td>
+<td style="text-align:right;">
+444,224
+</td>
+<td style="text-align:left;">
+Email addresses , Names , Phone numbers , Physical addresses
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Experian (South Africa)
+</td>
+<td style="text-align:left;">
+2020-08-19
+</td>
+<td style="text-align:right;">
+1,284,637
+</td>
+<td style="text-align:left;">
+Email addresses , Employers , Government issued IDs, Names , Occupations , Phone numbers
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Unico Campania
+</td>
+<td style="text-align:left;">
+2020-08-19
+</td>
+<td style="text-align:right;">
+166,031
+</td>
+<td style="text-align:left;">
+Email addresses, Passwords
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Lazada RedMart
+</td>
+<td style="text-align:left;">
+2020-07-30
+</td>
+<td style="text-align:right;">
+1,107,789
+</td>
+<td style="text-align:left;">
+Email addresses , Names , Partial credit card data, Passwords , Phone numbers , Physical addresses
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Utah Gun Exchange
+</td>
+<td style="text-align:left;">
+2020-07-17
+</td>
+<td style="text-align:right;">
+235,233
+</td>
+<td style="text-align:left;">
+Email addresses, Genders , IP addresses , Passwords , Usernames
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Variable type: list</strong></p>
-<table>
-<thead>
-<tr class="header">
-<th align="left">skim_variable</th>
-<th align="right">n_missing</th>
-<th align="right">complete_rate</th>
-<th align="right">n_unique</th>
-<th align="right">min_length</th>
-<th align="right">max_length</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">DataClasses</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">246</td>
-<td align="right">1</td>
-<td align="right">25</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Variable type: logical</strong></p>
-<table>
-<thead>
-<tr class="header">
-<th align="left">skim_variable</th>
-<th align="right">n_missing</th>
-<th align="right">complete_rate</th>
-<th align="right">mean</th>
-<th align="left">count</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">IsVerified</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">0.94</td>
-<td align="left">TRU: 463, FAL: 32</td>
-</tr>
-<tr class="even">
-<td align="left">IsFabricated</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">0.00</td>
-<td align="left">FAL: 493, TRU: 2</td>
-</tr>
-<tr class="odd">
-<td align="left">IsSensitive</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">0.07</td>
-<td align="left">FAL: 459, TRU: 36</td>
-</tr>
-<tr class="even">
-<td align="left">IsRetired</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">0.00</td>
-<td align="left">FAL: 494, TRU: 1</td>
-</tr>
-<tr class="odd">
-<td align="left">IsSpamList</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">0.02</td>
-<td align="left">FAL: 484, TRU: 11</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Variable type: numeric</strong></p>
-<table>
-<thead>
-<tr class="header">
-<th align="left">skim_variable</th>
-<th align="right">n_missing</th>
-<th align="right">complete_rate</th>
-<th align="right">mean</th>
-<th align="right">sd</th>
-<th align="right">p0</th>
-<th align="right">p25</th>
-<th align="right">p50</th>
-<th align="right">p75</th>
-<th align="right">p100</th>
-<th align="left">hist</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">PwnCount</td>
-<td align="right">0</td>
-<td align="right">1</td>
-<td align="right">21161140</td>
-<td align="right">81252585</td>
-<td align="right">858</td>
-<td align="right">289013</td>
-<td align="right">1107789</td>
-<td align="right">6668559</td>
-<td align="right">772904991</td>
-<td align="left">▇▁▁▁▁</td>
-</tr>
-</tbody>
-</table>
-<p>We will obtain list of the types of stolen data. We see examples such as: Email addresses, IP addresses, names, password phone numbers, physical addresses, credit cards, biometric data to more spurious data such as eating habits, sexual fetishes, and Astrological signs.</p>
+<p>From table <a href="#tab:table1">2</a>, we see that the most recent hack was the Cit0day hack which contained nearly 227 million e-mail addresses and passwords. Other recent leaks such as the Wongnai leak contained information such as geographic locations, IP addresses, phone numbers, and social media profiles.</p>
+</div>
+<div id="what-type-of-information-is-being-stolen" class="section level1">
+<h1>What type of information is being stolen?</h1>
+<p>It is clear that a wide variety of information is being leaked, but is it possible to know what data is being leaked and which is the most common? From the data provided, the answer is yes!</p>
+<p>We will obtain list of the types of stolen data. We see examples such as: Email addresses, IP addresses, names, password phone numbers, physical addresses, credit cards, biometric data to more spurious data such as eating habits, sexual fetishes, and astrological signs.</p>
+<p>We can view the most common data types compromised.</p>
 <pre class="r"><code>data_breach %&gt;%
   select(DataClasses)%&gt;%
   unnest(cols = c(DataClasses)) %&gt;%
-  unique() %&gt;%
+  count(DataClasses,sort = TRUE,name=&quot;Number of breaches&quot;) %&gt;% 
   rmarkdown::paged_table()</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["DataClasses"],"name":[1],"type":["chr"],"align":["left"]}],"data":[{"1":"Email addresses"},{"1":"IP addresses"},{"1":"Names"},{"1":"Passwords"},{"1":"Phone numbers"},{"1":"Physical addresses"},{"1":"Usernames"},{"1":"Device information"},{"1":"Dates of birth"},{"1":"Genders"},{"1":"Geographic locations"},{"1":"Employers"},{"1":"Job titles"},{"1":"Social media profiles"},{"1":"Password hints"},{"1":"Races"},{"1":"Relationship statuses"},{"1":"Sexual orientations"},{"1":"Spoken languages"},{"1":"Partial dates of birth"},{"1":"Website activity"},{"1":"Address book contacts"},{"1":"Apps installed on devices"},{"1":"Cellular network names"},{"1":"IMEI numbers"},{"1":"IMSI numbers"},{"1":"Profile photos"},{"1":"Email messages"},{"1":"Homepage URLs"},{"1":"Instant messenger identities"},{"1":"Salutations"},{"1":"Ages"},{"1":"Auth tokens"},{"1":"Employment statuses"},{"1":"Marital statuses"},{"1":"Private messages"},{"1":"Browser user agent details"},{"1":"Bios"},{"1":"Avatars"},{"1":"Ethnicities"},{"1":"Payment histories"},{"1":"Security questions and answers"},{"1":"Account balances"},{"1":"Beauty ratings"},{"1":"Car ownership statuses"},{"1":"Drinking habits"},{"1":"Education levels"},{"1":"Home ownership statuses"},{"1":"Income levels"},{"1":"Personal descriptions"},{"1":"Personal interests"},{"1":"Physical attributes"},{"1":"Smoking habits"},{"1":"Credit cards"},{"1":"Survey results"},{"1":"Career levels"},{"1":"User website URLs"},{"1":"Purchases"},{"1":"Historical passwords"},{"1":"Financial transactions"},{"1":"Taxation records"},{"1":"Payment methods"},{"1":"Family members' names"},{"1":"Biometric data"},{"1":"Passport numbers"},{"1":"Buying preferences"},{"1":"Charitable donations"},{"1":"Credit status information"},{"1":"Family structure"},{"1":"Financial investments"},{"1":"Net worths"},{"1":"Political donations"},{"1":"Social security numbers"},{"1":"Eating habits"},{"1":"Partial credit card data"},{"1":"Deceased date"},{"1":"Government issued IDs"},{"1":"Utility bills"},{"1":"Job applications"},{"1":"Occupations"},{"1":"Religions"},{"1":"Purchasing habits"},{"1":"Vehicle details"},{"1":"Sexual fetishes"},{"1":"School grades (class levels)"},{"1":"Encrypted keys"},{"1":"Mnemonic phrases"},{"1":"Professional skills"},{"1":"Years of professional experience"},{"1":"Bank account numbers"},{"1":"Social connections"},{"1":"Time zones"},{"1":"Health insurance information"},{"1":"Personal health data"},{"1":"Nicknames"},{"1":"Nationalities"},{"1":"Recovery email addresses"},{"1":"Living costs"},{"1":"Mothers maiden names"},{"1":"Places of birth"},{"1":"Spouses names"},{"1":"Deceased statuses"},{"1":"Astrological signs"},{"1":"Drug habits"},{"1":"Fitness levels"},{"1":"Parenting plans"},{"1":"Political views"},{"1":"Travel habits"},{"1":"Work habits"},{"1":"Device usage tracking data"},{"1":"Age groups"},{"1":"Chat logs"},{"1":"User statuses"},{"1":"Home loan information"},{"1":"Customer feedback"},{"1":"PINs"},{"1":"Credit card CVV"},{"1":"Password strengths"},{"1":"Audio recordings"},{"1":"Browsing histories"},{"1":"Photos"},{"1":"SMS messages"},{"1":"Support tickets"},{"1":"Customer interactions"},{"1":"MAC addresses"},{"1":"Reward program balances"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["DataClasses"],"name":[1],"type":["chr"],"align":["left"]},{"label":["Number of breaches"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"Email addresses","2":"491"},{"1":"Passwords","2":"408"},{"1":"Usernames","2":"288"},{"1":"IP addresses","2":"221"},{"1":"Names","2":"205"},{"1":"Dates of birth","2":"126"},{"1":"Phone numbers","2":"116"},{"1":"Physical addresses","2":"95"},{"1":"Genders","2":"84"},{"1":"Website activity","2":"76"},{"1":"Geographic locations","2":"65"},{"1":"Private messages","2":"24"},{"1":"Social media profiles","2":"22"},{"1":"Employers","2":"20"},{"1":"Job titles","2":"19"},{"1":"Purchases","2":"14"},{"1":"Spoken languages","2":"14"},{"1":"Device information","2":"11"},{"1":"Security questions and answers","2":"11"},{"1":"Partial credit card data","2":"10"},{"1":"Browser user agent details","2":"9"},{"1":"Email messages","2":"8"},{"1":"Government issued IDs","2":"8"},{"1":"Income levels","2":"8"},{"1":"Instant messenger identities","2":"8"},{"1":"Marital statuses","2":"8"},{"1":"Account balances","2":"7"},{"1":"Ethnicities","2":"7"},{"1":"Payment histories","2":"7"},{"1":"Auth tokens","2":"6"},{"1":"Avatars","2":"6"},{"1":"Family structure","2":"6"},{"1":"Physical attributes","2":"6"},{"1":"Bios","2":"5"},{"1":"Credit cards","2":"5"},{"1":"Education levels","2":"5"},{"1":"Home ownership statuses","2":"5"},{"1":"Salutations","2":"5"},{"1":"Sexual orientations","2":"5"},{"1":"Social connections","2":"5"},{"1":"Time zones","2":"5"},{"1":"User website URLs","2":"5"},{"1":"Credit status information","2":"4"},{"1":"Historical passwords","2":"4"},{"1":"Passport numbers","2":"4"},{"1":"Religions","2":"4"},{"1":"Drinking habits","2":"3"},{"1":"Family members' names","2":"3"},{"1":"Occupations","2":"3"},{"1":"Partial dates of birth","2":"3"},{"1":"Personal descriptions","2":"3"},{"1":"Profile photos","2":"3"},{"1":"Relationship statuses","2":"3"},{"1":"Age groups","2":"2"},{"1":"Ages","2":"2"},{"1":"Bank account numbers","2":"2"},{"1":"Chat logs","2":"2"},{"1":"Financial investments","2":"2"},{"1":"Financial transactions","2":"2"},{"1":"Homepage URLs","2":"2"},{"1":"IMEI numbers","2":"2"},{"1":"Nationalities","2":"2"},{"1":"Net worths","2":"2"},{"1":"Nicknames","2":"2"},{"1":"Personal interests","2":"2"},{"1":"PINs","2":"2"},{"1":"Political views","2":"2"},{"1":"Sexual fetishes","2":"2"},{"1":"Smoking habits","2":"2"},{"1":"SMS messages","2":"2"},{"1":"Social security numbers","2":"2"},{"1":"Address book contacts","2":"1"},{"1":"Apps installed on devices","2":"1"},{"1":"Astrological signs","2":"1"},{"1":"Audio recordings","2":"1"},{"1":"Beauty ratings","2":"1"},{"1":"Biometric data","2":"1"},{"1":"Browsing histories","2":"1"},{"1":"Buying preferences","2":"1"},{"1":"Car ownership statuses","2":"1"},{"1":"Career levels","2":"1"},{"1":"Cellular network names","2":"1"},{"1":"Charitable donations","2":"1"},{"1":"Credit card CVV","2":"1"},{"1":"Customer feedback","2":"1"},{"1":"Customer interactions","2":"1"},{"1":"Deceased date","2":"1"},{"1":"Deceased statuses","2":"1"},{"1":"Device usage tracking data","2":"1"},{"1":"Drug habits","2":"1"},{"1":"Eating habits","2":"1"},{"1":"Employment statuses","2":"1"},{"1":"Encrypted keys","2":"1"},{"1":"Fitness levels","2":"1"},{"1":"Health insurance information","2":"1"},{"1":"Home loan information","2":"1"},{"1":"IMSI numbers","2":"1"},{"1":"Job applications","2":"1"},{"1":"Living costs","2":"1"},{"1":"MAC addresses","2":"1"},{"1":"Mnemonic phrases","2":"1"},{"1":"Mothers maiden names","2":"1"},{"1":"Parenting plans","2":"1"},{"1":"Password hints","2":"1"},{"1":"Password strengths","2":"1"},{"1":"Payment methods","2":"1"},{"1":"Personal health data","2":"1"},{"1":"Photos","2":"1"},{"1":"Places of birth","2":"1"},{"1":"Political donations","2":"1"},{"1":"Professional skills","2":"1"},{"1":"Purchasing habits","2":"1"},{"1":"Races","2":"1"},{"1":"Recovery email addresses","2":"1"},{"1":"Reward program balances","2":"1"},{"1":"School grades (class levels)","2":"1"},{"1":"Spouses names","2":"1"},{"1":"Support tickets","2":"1"},{"1":"Survey results","2":"1"},{"1":"Taxation records","2":"1"},{"1":"Travel habits","2":"1"},{"1":"User statuses","2":"1"},{"1":"Utility bills","2":"1"},{"1":"Vehicle details","2":"1"},{"1":"Work habits","2":"1"},{"1":"Years of professional experience","2":"1"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
+<p>Showing the results in a graph,</p>
 <pre class="r"><code>data_breach %&gt;%
   select(DataClasses)%&gt;%
   unnest(cols = c(DataClasses)) %&gt;%
@@ -316,50 +532,379 @@ data_breach &lt;-  data_breaches %&gt;%
   slice_max(order_by = n,n=10) %&gt;%
   ggplot(aes(x=n,y=reorder(DataClasses,n)))+
   geom_col(fill=&quot;#009732&quot;)+
-  geom_text(aes(label=n),hjust=-.1,col=&quot;#2CE71E&quot;)+
+  geom_text(aes(label=n),hjust=-.1,colour=&quot;white&quot;)+
   scale_x_continuous(expand= expansion(c(0,0.1) ))+
   labs(title=&quot;Emails and passwords were the most common data stolen&quot;,
        subtitle=&quot;Most common data stolen from major data breeches&quot;,
        x=&quot;Number of Breaches&quot;,y=&quot;Data&quot;,
-       caption=&quot;Source: haveibeenpwned.com&quot;)+
+       caption=&quot;Viz by: Gurpreet | Source: haveibeenpwned.com&quot;)+
   theme(plot.background = element_rect(fill=&quot;black&quot;),
         panel.background = element_rect(fill=&quot;black&quot;),
-        text = element_text(colour=&quot;#2CE71E&quot;,family=&quot;Rockwell&quot;),
-        axis.text = element_text(colour=&quot;#2CE71E&quot;,size=10),
+        text = element_text(colour=&quot;white&quot;),
+        axis.text = element_text(colour=&quot;white&quot;,size=10),
+        axis.text.x = element_text(colour=&quot;grey40&quot;),
         panel.grid = element_blank(),
-        axis.ticks = element_blank())</code></pre>
+        panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        axis.ticks = element_blank(),
+        plot.title.position = &quot;plot&quot;,
+        plot.caption = element_text(colour=&quot;grey50&quot;,))</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="700" /></p>
-<p>Below we see a word cloud of the most common</p>
+<p>Below we see a word cloud of the most common, hover over the text to see the number of times the particular data type was stolen.</p>
 <pre class="r"><code>set.seed(15)
 data_breach %&gt;%
   select(DataClasses)%&gt;%
   unnest(cols = c(DataClasses)) %&gt;%
   count(DataClasses,sort=TRUE)  %&gt;%
-  #mutate(DataClasses=str_replace_all(DataClasses,&quot; &quot;,&quot;-&quot;)) %&gt;% 
 # wordcloud2(color=sample( c(&quot;#00FF41&quot;,&quot;#7FE706&quot;,&quot;#48A70B&quot;,&quot;#A4FF00&quot;,&quot;#66FF01&quot;,&quot;#2CE71E&quot;,&quot;#0AAF30&quot;),126,replace=TRUE), backgroundColor =&quot;black&quot;,rotateRatio=0,size=0.5,fontFamily=&quot;Rockwell&quot;)
    wordcloud2(color=&#39;random-light&#39;, backgroundColor = &quot;black&quot;,rotateRatio=0,size=0.5,fontFamily=&quot;Rockwell&quot;)</code></pre>
 <div id="htmlwidget-1" style="width:960px;height:480px;" class="wordcloud2 html-widget"></div>
-<script type="application/json" data-for="htmlwidget-1">{"x":{"word":["Email addresses","Passwords","Usernames","IP addresses","Names","Dates of birth","Phone numbers","Physical addresses","Genders","Website activity","Geographic locations","Private messages","Social media profiles","Employers","Job titles","Purchases","Spoken languages","Device information","Security questions and answers","Partial credit card data","Browser user agent details","Email messages","Government issued IDs","Income levels","Instant messenger identities","Marital statuses","Account balances","Ethnicities","Payment histories","Auth tokens","Avatars","Family structure","Physical attributes","Bios","Credit cards","Education levels","Home ownership statuses","Salutations","Sexual orientations","Social connections","Time zones","User website URLs","Credit status information","Historical passwords","Passport numbers","Religions","Drinking habits","Family members' names","Occupations","Partial dates of birth","Personal descriptions","Profile photos","Relationship statuses","Age groups","Ages","Bank account numbers","Chat logs","Financial investments","Financial transactions","Homepage URLs","IMEI numbers","Nationalities","Net worths","Nicknames","Personal interests","PINs","Political views","Sexual fetishes","Smoking habits","SMS messages","Social security numbers","Address book contacts","Apps installed on devices","Astrological signs","Audio recordings","Beauty ratings","Biometric data","Browsing histories","Buying preferences","Car ownership statuses","Career levels","Cellular network names","Charitable donations","Credit card CVV","Customer feedback","Customer interactions","Deceased date","Deceased statuses","Device usage tracking data","Drug habits","Eating habits","Employment statuses","Encrypted keys","Fitness levels","Health insurance information","Home loan information","IMSI numbers","Job applications","Living costs","MAC addresses","Mnemonic phrases","Mothers maiden names","Parenting plans","Password hints","Password strengths","Payment methods","Personal health data","Photos","Places of birth","Political donations","Professional skills","Purchasing habits","Races","Recovery email addresses","Reward program balances","School grades (class levels)","Spouses names","Support tickets","Survey results","Taxation records","Travel habits","User statuses","Utility bills","Vehicle details","Work habits","Years of professional experience"],"freq":[490,408,288,221,204,126,115,94,84,76,65,24,22,20,19,14,14,11,11,10,9,8,8,8,8,8,7,7,7,6,6,6,6,5,5,5,5,5,5,5,5,5,4,4,4,4,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"fontFamily":"Rockwell","fontWeight":"bold","color":"random-light","minSize":0,"weightFactor":0.183673469387755,"backgroundColor":"black","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"word":["Email addresses","Passwords","Usernames","IP addresses","Names","Dates of birth","Phone numbers","Physical addresses","Genders","Website activity","Geographic locations","Private messages","Social media profiles","Employers","Job titles","Purchases","Spoken languages","Device information","Security questions and answers","Partial credit card data","Browser user agent details","Email messages","Government issued IDs","Income levels","Instant messenger identities","Marital statuses","Account balances","Ethnicities","Payment histories","Auth tokens","Avatars","Family structure","Physical attributes","Bios","Credit cards","Education levels","Home ownership statuses","Salutations","Sexual orientations","Social connections","Time zones","User website URLs","Credit status information","Historical passwords","Passport numbers","Religions","Drinking habits","Family members' names","Occupations","Partial dates of birth","Personal descriptions","Profile photos","Relationship statuses","Age groups","Ages","Bank account numbers","Chat logs","Financial investments","Financial transactions","Homepage URLs","IMEI numbers","Nationalities","Net worths","Nicknames","Personal interests","PINs","Political views","Sexual fetishes","Smoking habits","SMS messages","Social security numbers","Address book contacts","Apps installed on devices","Astrological signs","Audio recordings","Beauty ratings","Biometric data","Browsing histories","Buying preferences","Car ownership statuses","Career levels","Cellular network names","Charitable donations","Credit card CVV","Customer feedback","Customer interactions","Deceased date","Deceased statuses","Device usage tracking data","Drug habits","Eating habits","Employment statuses","Encrypted keys","Fitness levels","Health insurance information","Home loan information","IMSI numbers","Job applications","Living costs","MAC addresses","Mnemonic phrases","Mothers maiden names","Parenting plans","Password hints","Password strengths","Payment methods","Personal health data","Photos","Places of birth","Political donations","Professional skills","Purchasing habits","Races","Recovery email addresses","Reward program balances","School grades (class levels)","Spouses names","Support tickets","Survey results","Taxation records","Travel habits","User statuses","Utility bills","Vehicle details","Work habits","Years of professional experience"],"freq":[491,408,288,221,205,126,116,95,84,76,65,24,22,20,19,14,14,11,11,10,9,8,8,8,8,8,7,7,7,6,6,6,6,5,5,5,5,5,5,5,5,5,4,4,4,4,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"fontFamily":"Rockwell","fontWeight":"bold","color":"random-light","minSize":0,"weightFactor":0.183299389002037,"backgroundColor":"black","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+<p>From this we see that e-mail addresses had appeared in in 490 out of the 495 possible breaches, meaning emails were stolen 95% of the time in this data set. Passwords were stolen 82% of the time.</p>
+<pre class="r"><code>data_breach %&gt;%
+  transmute(DataClasses,BreachYear = lubridate::year(BreachDate)) %&gt;% 
+  unnest(cols = c(DataClasses)) %&gt;%
+  mutate(DataClasses = fct_lump_n(DataClasses,n=9))%&gt;% 
+  count(DataClasses,BreachYear) %&gt;%
+  complete(DataClasses,BreachYear,fill = list(n=0)) %&gt;% 
+  group_by(BreachYear) %&gt;%
+  mutate(pct = n / sum(n))%&gt;% 
+  ggplot(aes(x=BreachYear,y=pct,fill=DataClasses))+
+  geom_area(colour=&quot;black&quot;)+
+  scale_y_continuous( expand = c(0,0),  labels = scales::percent_format())+
+  scale_x_continuous( expand = c(0,0), labels = scales::number_format(accuracy = 1,big.mark = &quot;&quot;)  )+
+  labs(title=&quot;The proportions of the data type stolen has largely remained the same over time&quot;,
+       subtitle = &quot;Percent of the top 9 most common data types stolen by year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
+       y=&quot;Percent (%)&quot;,fill=&quot;Data Type&quot;)+
+  theme(panel.background = element_blank(),
+        axis.line = element_line(),
+        )</code></pre>
+<p><img src="index_files/figure-html/plot5-1.png" width="672" /></p>
+<p>We see that, broadly speaking, the type of data stolen has remained the same over the course of the years. There does not seem to be any major shift towards different data types being stolen.</p>
+<pre class="r"><code>data_breach %&gt;%
+  transmute(DataClasses,BreachYear = lubridate::year(BreachDate)) %&gt;% 
+  unnest(cols = c(DataClasses)) %&gt;%
+  count(DataClasses,BreachYear) %&gt;%
+  mutate(DataClasses =fct_reorder2(DataClasses,BreachYear,n) ) %&gt;% 
+  ggplot(aes(x=BreachYear,y=n,col=DataClasses))+
+  geom_line(size=1.5)+
+  geom_point(size=2)+
+  gghighlight::gghighlight(last(n),max_highlight = 6,use_group_by = T, use_direct_label = FALSE , label_key = DataClasses)+
+  scale_x_continuous( breaks = seq(2007,2020,2)  )+
+  labs(title= &quot;Top six most common stolen data type of 2020 and their trends&quot;, subtitle=&quot;Number of breaches containing stolen data by year. Coloured by change since 2015&quot;,y=&quot;Number of Breaches&quot;,col=&quot;Data Type&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  scale_color_manual(values = c(&quot;firebrick&quot;,&quot;forestgreen&quot;,&quot;firebrick2&quot;,
+                                &quot;green3&quot;,&quot;indianred3&quot;,&quot;olivedrab2&quot;),
+                     labels = c(&quot;Email addresses&quot;,&quot;Passwords&quot;,&quot;IP addresses&quot;,
+                                &quot;Name&quot;,&quot;Phone numbers&quot;,&quot;Physical addresses&quot;))+
+  theme_minimal()+
+  theme(panel.grid.major.y = element_line(colour = &quot;grey90&quot;),
+        panel.grid = element_blank(),
+        legend.position = &quot;bottom&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>We see that the most common data types stolen in 2020 are: Email addresses, IP addresses, phone numbers, passwords, names, and physical addresses.</p>
+<p>Of these we see that email addresses, IP addresses, and phone numbers have seen a declining trend since 2016, while passwords, names, and physical addresses have seen an increase from 2015.</p>
+<pre class="r"><code>data_breach %&gt;%
+  transmute(DataClasses,PwnCount,BreachYear = lubridate::year(BreachDate)) %&gt;% 
+  unnest(cols = c(DataClasses)) %&gt;%
+  complete(DataClasses,BreachYear,fill = list(PwnCount=0)) %&gt;% 
+  group_by(BreachYear,DataClasses) %&gt;% 
+  summarise(Total = sum(PwnCount),.groups=&quot;drop&quot;) %&gt;% 
+  ggplot(aes(x=BreachYear,y=Total,col=DataClasses))+
+  geom_point(size=2)+
+  geom_line(size=1.2)+
+  scale_y_continuous(labels = scales::label_number(accuracy = .5,scale = 1e-9, suffix = &quot;B&quot;), breaks = seq(0,3,.5)*1e9  )+
+  scale_x_continuous( breaks = seq(2007,2020,2)  )+
+  labs(title=&quot;In 2019, over 2.5 billion emails addresses were leaked&quot;,subtitle = &quot;Total number of data types leaked per year&quot;,
+       y=&quot;Number of leaks (Billions)&quot;,col=&quot;Data Type&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  gghighlight::gghighlight(last(Total),max_highlight = 3,use_group_by = TRUE, use_direct_label = FALSE , label_key = DataClasses)+
+  theme_minimal()+
+  theme(panel.grid.major.y = element_line(colour = &quot;grey90&quot;),
+        panel.grid = element_blank(),
+        legend.position = &quot;top&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>The above graph shows the trend of the 5 most leaked data types in 2020 and shows their trends. We see that in 2019, a staggering 2.5 billion email addresses were leaked. That means that if all 7.8 billion people in the world had an email address, 32% of them would have been leaked. However, it is extremely likely that there are many duplicated leaks, an example is many people using the common password of <code>password</code>. This is one of the most common passwords used<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> and so would be “repeated” many times in the dataset, this holds true for other data types.</p>
+<pre class="r"><code>data_breach %&gt;%
+  transmute(DataClasses,PwnCount,BreachYear = lubridate::year(BreachDate)) %&gt;% 
+  unnest(cols = c(DataClasses)) %&gt;%
+  group_by(DataClasses) %&gt;% 
+  summarise(Total = sum(PwnCount),.groups=&quot;drop&quot;) %&gt;% 
+  arrange(-Total) %&gt;% 
+  rmarkdown::paged_table()</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["DataClasses"],"name":[1],"type":["chr"],"align":["left"]},{"label":["Total"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"Email addresses","2":"10469890250"},{"1":"Passwords","2":"7585675594"},{"1":"Names","2":"4579674164"},{"1":"Usernames","2":"3038489630"},{"1":"Phone numbers","2":"2947259433"},{"1":"IP addresses","2":"2648903371"},{"1":"Geographic locations","2":"2615156083"},{"1":"Genders","2":"2194669077"},{"1":"Dates of birth","2":"2136670143"},{"1":"Physical addresses","2":"2110491606"},{"1":"Job titles","2":"1900397201"},{"1":"Employers","2":"1797277305"},{"1":"Social media profiles","2":"1336799191"},{"1":"Spoken languages","2":"492968782"},{"1":"Bios","2":"300411276"},{"1":"Website activity","2":"283313968"},{"1":"User website URLs","2":"270209736"},{"1":"Ethnicities","2":"223945458"},{"1":"Income levels","2":"201113261"},{"1":"Education levels","2":"184035509"},{"1":"Religions","2":"183667521"},{"1":"Family structure","2":"172044178"},{"1":"Marital statuses","2":"169627054"},{"1":"Occupations","2":"157716250"},{"1":"Password hints","2":"152445165"},{"1":"Home ownership statuses","2":"150308804"},{"1":"Credit status information","2":"147923414"},{"1":"Salutations","2":"143418226"},{"1":"Financial investments","2":"139753895"},{"1":"Net worths","2":"139753895"},{"1":"Personal interests","2":"132677852"},{"1":"Sexual orientations","2":"100475525"},{"1":"Device information","2":"79108056"},{"1":"Sexual fetishes","2":"68160667"},{"1":"Relationship statuses","2":"55188865"},{"1":"Physical attributes","2":"54813394"},{"1":"Drinking habits","2":"52420957"},{"1":"Political views","2":"51320868"},{"1":"Auth tokens","2":"46074589"},{"1":"Security questions and answers","2":"45143503"},{"1":"Payment histories","2":"37190950"},{"1":"Profile photos","2":"34481150"},{"1":"Browser user agent details","2":"30960806"},{"1":"Personal descriptions","2":"29465733"},{"1":"Astrological signs","2":"27393015"},{"1":"Drug habits","2":"27393015"},{"1":"Fitness levels","2":"27393015"},{"1":"Parenting plans","2":"27393015"},{"1":"Travel habits","2":"27393015"},{"1":"Work habits","2":"27393015"},{"1":"Partial credit card data","2":"25438786"},{"1":"Smoking habits","2":"25027942"},{"1":"Nicknames","2":"23956494"},{"1":"IMEI numbers","2":"20624169"},{"1":"Address book contacts","2":"20580060"},{"1":"Apps installed on devices","2":"20580060"},{"1":"Cellular network names","2":"20580060"},{"1":"IMSI numbers","2":"20580060"},{"1":"Purchases","2":"18930152"},{"1":"Email messages","2":"11723845"},{"1":"Government issued IDs","2":"8470456"},{"1":"Account balances","2":"8317372"},{"1":"Buying preferences","2":"8176132"},{"1":"Charitable donations","2":"8176132"},{"1":"Political donations","2":"8176132"},{"1":"Purchasing habits","2":"7196890"},{"1":"Nationalities","2":"6141385"},{"1":"Password strengths","2":"5814988"},{"1":"Private messages","2":"5653209"},{"1":"Family members' names","2":"5645786"},{"1":"PINs","2":"5122675"},{"1":"Races","2":"3867997"},{"1":"Avatars","2":"3825765"},{"1":"Social connections","2":"3692955"},{"1":"Social security numbers","2":"3206897"},{"1":"Instant messenger identities","2":"2827558"},{"1":"Payment methods","2":"2424784"},{"1":"Deceased statuses","2":"2257930"},{"1":"Survey results","2":"2231256"},{"1":"Time zones","2":"1945839"},{"1":"Historical passwords","2":"1890847"},{"1":"Partial dates of birth","2":"1623786"},{"1":"Recovery email addresses","2":"1476783"},{"1":"Encrypted keys","2":"1408078"},{"1":"Mnemonic phrases","2":"1408078"},{"1":"Eating habits","2":"1383759"},{"1":"Ages","2":"1336754"},{"1":"Homepage URLs","2":"1264321"},{"1":"Beauty ratings","2":"1100089"},{"1":"Car ownership statuses","2":"1100089"},{"1":"Professional skills","2":"1073164"},{"1":"Years of professional experience","2":"1073164"},{"1":"Credit cards","2":"1047526"},{"1":"Home loan information","2":"972629"},{"1":"Living costs","2":"768890"},{"1":"Mothers maiden names","2":"768890"},{"1":"Places of birth","2":"768890"},{"1":"Spouses names","2":"768890"},{"1":"Device usage tracking data","2":"699793"},{"1":"Passport numbers","2":"692545"},{"1":"School grades (class levels)","2":"542902"},{"1":"Financial transactions","2":"532919"},{"1":"Taxation records","2":"471167"},{"1":"Chat logs","2":"415240"},{"1":"Vehicle details","2":"396650"},{"1":"Bank account numbers","2":"331393"},{"1":"Health insurance information","2":"321920"},{"1":"Personal health data","2":"321920"},{"1":"Biometric data","2":"228605"},{"1":"Job applications","2":"226095"},{"1":"User statuses","2":"149830"},{"1":"Customer interactions","2":"139395"},{"1":"MAC addresses","2":"139395"},{"1":"Age groups","2":"121795"},{"1":"Credit card CVV","2":"104977"},{"1":"SMS messages","2":"100130"},{"1":"Customer feedback","2":"88678"},{"1":"Deceased date","2":"81830"},{"1":"Utility bills","2":"81830"},{"1":"Employment statuses","2":"49681"},{"1":"Audio recordings","2":"44109"},{"1":"Browsing histories","2":"44109"},{"1":"Photos","2":"44109"},{"1":"Career levels","2":"36789"},{"1":"Support tickets","2":"26815"},{"1":"Reward program balances","2":"2239"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<p>The top 5 total number of data types leaked are</p>
+<ul>
+<li><p>10 billion email addresses</p></li>
+<li><p>7.5 billion passwords</p></li>
+<li><p>4.6 billion names</p></li>
+<li><p>3 billion phone numbers</p></li>
+<li><p>2.6 billion IP addresses</p></li>
+</ul>
+<div id="what-were-the-biggest-data-breaches" class="section level2">
+<h2>What were the biggest data breaches?</h2>
+<p>Let’s look at the biggest data breaches in the dataset</p>
+<pre class="r"><code>data_breach %&gt;% 
+  slice_max(order_by=PwnCount,n=10) %&gt;% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill=&quot;#2915EA&quot;,col=&quot;#7161ed&quot;)+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1) ) ,col=&quot;white&quot;,hjust=-.1)+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+  scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
+  labs(title=&quot;The biggest data breaches known so far&quot;,subtitle=&quot;Billions of accounts containing personal details such as email adresses and passwords have been leaked.\nThis list only contains the known breaches, there is no telling how many unnoticed major data breaches have occured...&quot;,
+  x=&quot;Number of Accounts Affected (Millions)&quot;,y=&quot;Data Breach Source&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        axis.text.y =element_text(colour = &quot;white&quot;), 
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="864" /></p>
+<p>Recall that we had various types of breaches such as <code>IsSensitve</code>, <code>IsFabricated</code>, etc., We can further delve deeper into the different type of breaches.</p>
+<p>Let’s look at the biggest sensitive breaches.</p>
+<pre class="r"><code>data_breach %&gt;%
+  filter(IsSensitive==TRUE) %&gt;% 
+  select(Title,BreachDate,PwnCount) %&gt;%
+  slice_max(order_by = PwnCount,n=10) %&gt;% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill=&quot;#480FF0&quot;,col=&quot;#906DF6&quot;)+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1) ),hjust=-0.3,col=&quot;white&quot;)+
+  scale_x_continuous(labels=scales::label_number_si(),limits=c(0,1.9e8),expand = c(0,0))+
+  labs(title=&quot;The biggest sensitive data breaches&quot;,subtitle=&quot;A senstive breach can have an adverse effect on site users if discovered&quot;,
+  x=&quot;Number of Accounts Affected (Millions)&quot;,y=&quot;Site&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        axis.text.y =element_text(colour = &quot;white&quot;), 
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>What were biggest data breaches that contained leaked password details?</p>
+<pre class="r"><code>data_breach %&gt;% 
+  unnest(DataClasses) %&gt;%
+  filter(DataClasses == &quot;Passwords&quot;) %&gt;%
+  slice_max(order_by=PwnCount,n=15) %&gt;% 
+  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
+  geom_col(fill=&quot;#0856F7&quot;,col=&quot;#3675f9&quot;)+
+  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1) ) ,col=&quot;white&quot;,hjust=-.1)+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+  scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
+  labs(title=&quot;The data breaches with the most passwords leaked&quot;,subtitle=&quot;Billions of passwords have been leaked&quot;,x=&quot;Number of Accounts Affected (Millions)&quot;,y=&quot;Data Breach Source&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background  = element_rect(fill=&quot;black&quot;),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
+        plot.background = element_rect(fill=&quot;black&quot;),
+        text = element_text(colour = &quot;white&quot;),
+        axis.text.y =element_text(colour = &quot;white&quot;), 
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+</div>
+</div>
+<div id="how-has-scale-of-breaches-changed-over-time" class="section level1">
+<h1>How has scale of breaches changed over time?</h1>
+<p>Now we want to ask the question of how the frequency of data breaches has changed and how the scale has changed. Both can be answered by a simple scatter plot showing the number of breaches that affect <span class="math inline">\(X\)</span> amount of accounts over time.</p>
 <pre class="r"><code>data_breach %&gt;% 
   select(Name,PwnCount,BreachDate) %&gt;% 
   arrange(-PwnCount)%&gt;%
-  #filter(PwnCount &gt; 1e6) %&gt;% 
-  ggplot(aes(x=BreachDate,y=PwnCount,col=PwnCount))+
-  geom_point(size=2)+
+  ggplot(aes(x=BreachDate,y=PwnCount ,col=PwnCount))+
+  geom_point(size=3)+
   scale_x_date(date_labels = &quot;%Y&quot;,date_breaks = &quot;2 years&quot;)+
   scale_y_continuous(labels = scales::label_number_si())+
   scale_color_viridis_c(option=&quot;B&quot;,begin=0.2,end=1)+
-  labs(title=&quot;The number of substantial data breaches has increased over recent years&quot;,subtitle = &quot;The number of accounts affected in a data breach over time&quot;)+
+  labs(title=&quot;The scale of massive data breaches has increased over recent years&quot;,subtitle = &quot;The number of accounts affected in a data breach over time&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
   theme(panel.background  = element_rect(fill=&quot;black&quot;),
         panel.grid = element_blank(),
-       # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
+        panel.grid.major.y = element_line(colour=&quot;grey30&quot;),
         plot.background = element_rect(fill=&quot;black&quot;),
         text = element_text(colour = &quot;white&quot;),
+        axis.text = element_text(colour=&quot;grey50&quot;),
         legend.position = &quot;none&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<div class="figure"><span id="fig:plotscatter"></span>
+<p class="caption">
+Figure 1: 
+</p>
+<img src="index_files/figure-html/plotscatter-1.png" alt="\label{fig:scatter}" width="672" />
+</div>
+<p>From 2007 to 2010, data breaches were infrequent, and the largest breach affected just under 400 million accounts. It is plausible that since this was during the early part of the data collection, there could be many missing breaches. We wouldn’t be able to fully know how many there were during this time, but at least we have some data to point to.</p>
+<p>After 2010, we start seeing breaches of increasing frequency and scale. Around 2017, there are several breaches that number over 400 million affected accounts.</p>
+<p>we can also display this scatter plot using a log scale, this will also us to discern what is going on for very small values of <code>PwnCount</code> - as we have truly huge numbers on the scale of <span class="math inline">\(10^7\)</span></p>
+<div class="figure"><span id="fig:unnamed-chunk-12"></span>
+<p class="caption">
+Figure 2: Same data as Figure 1 but displayed on a log scale - note that the colour is on the same linear scale as Figure 2
+</p>
+<img src="index_files/figure-html/unnamed-chunk-12-1.png" alt="Same data as Figure 1 but displayed on a log scale - note that the colour is on the same linear scale as Figure 2" width="672" />
+</div>
+<p>Notice how we can tell how the distribution changed over time, we see more “small-scale” and “large-scale” breaches as time goes by. The low-scale hacks seem to be of the order of <span class="math inline">\(\exp(7) \approx 10^3\)</span>, while large scale hacks are on the order of <span class="math inline">\(\exp(20)\approx 10^{8}\)</span>. So, we have a wide range of accounts affected, from as low as thousands to as high as hundreds of millions.</p>
+<pre class="r"><code>data_breach %&gt;% 
+  transmute(PwnCount,
+            BreachYear = lubridate::year(BreachDate)) %&gt;% 
+  ggplot(aes(x=BreachYear,y= log(PwnCount) ,group=BreachYear))+
+  geom_boxplot(fill=&quot;gold&quot;,outlier.shape =  NA)+
+  geom_jitter(width = 0.2,height=0,alpha=0.2,col=&quot;black&quot;)+
+  scale_x_continuous(breaks = seq(2007,2020,1))+
+  labs(title=&quot;The average scale of breaches does not appear to change over time&quot;,subtitle = &quot;Boxplot of the number of accounts affected in a breach grouped by year, on a log scale&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme_minimal()+
+  theme(panel.grid  = element_blank(),
+        panel.grid.major.y = element_line(colour=&quot;grey70&quot;))</code></pre>
+<div class="figure"><span id="fig:plotboxlog"></span>
+<p class="caption">
+Figure 3: Grouping size of breaches by year
+</p>
+<img src="index_files/figure-html/plotboxlog-1.png" alt="Grouping size of breaches by year" width="672" />
+</div>
+<p>From just eye-balling this graph, it doesn’t really appear that there has been a change in the average number of accounts affected in a breach over the years. Though one could argue the variance is changing over time.</p>
+<pre class="r"><code>table1 &lt;- data_breach %&gt;% 
+  select(Name,PwnCount,BreachDate) %&gt;% 
+  arrange(PwnCount) %&gt;% 
+  slice_head(n=3)
+
+
+table2 &lt;- data_breach %&gt;% 
+  select(Name,PwnCount,BreachDate) %&gt;% 
+  arrange(-PwnCount) %&gt;% 
+  slice_head(n=3)
+
+
+
+ k1 &lt;-  knitr::kable(table1,caption = &quot;Smallest breaches&quot;,
+                     format.args = list(big.mark = &quot;,&quot;),
+                     align = &quot;c&quot;) %&gt;% 
+    kableExtra::kable_styling( bootstrap_options = c(&quot;striped&quot;,&quot;condensed&quot;),
+                               position =&quot;float_left&quot;,full_width = F) 
+  
+ k2  &lt;-  knitr::kable(table2,caption = &quot;Largest breaches&quot;,
+                      format.args = list(big.mark = &quot;,&quot;),
+                      align = &quot;c&quot;) %&gt;% 
+    kableExtra::kable_styling( bootstrap_options = c(&quot;striped&quot;,&quot;condensed&quot;),
+                               position = &quot;left&quot;,full_width = F)
+
+knitr::kables( list(k1,k2)  )</code></pre>
+<table class="kable_wrapper">
+<tbody>
+<tr>
+<td>
+<table class="table table-striped table-condensed" style="width: auto !important; float: left; margin-right: 10px;">
+<caption>
+<span id="tab:unnamed-chunk-13">Table 3: </span>Smallest breaches
+</caption>
+<thead>
+<tr>
+<th style="text-align:center;">
+Name
+</th>
+<th style="text-align:center;">
+PwnCount
+</th>
+<th style="text-align:center;">
+BreachDate
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">
+WPSandbox
+</td>
+<td style="text-align:center;">
+858
+</td>
+<td style="text-align:center;">
+2018-11-04
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+devkitPro
+</td>
+<td style="text-align:center;">
+1,508
+</td>
+<td style="text-align:center;">
+2019-02-03
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Tesco
+</td>
+<td style="text-align:center;">
+2,239
+</td>
+<td style="text-align:center;">
+2014-02-12
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td>
+<table class="table table-striped table-condensed" style="width: auto !important; ">
+<caption>
+<span id="tab:unnamed-chunk-13">Table 3: </span>Largest breaches
+</caption>
+<thead>
+<tr>
+<th style="text-align:center;">
+Name
+</th>
+<th style="text-align:center;">
+PwnCount
+</th>
+<th style="text-align:center;">
+BreachDate
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">
+Collection1
+</td>
+<td style="text-align:center;">
+772,904,991
+</td>
+<td style="text-align:center;">
+2019-01-07
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+VerificationsIO
+</td>
+<td style="text-align:center;">
+763,117,241
+</td>
+<td style="text-align:center;">
+2019-02-25
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+OnlinerSpambot
+</td>
+<td style="text-align:center;">
+711,477,622
+</td>
+<td style="text-align:center;">
+2017-08-28
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="how-has-the-number-of-breaches-changed-over-time" class="section level1">
+<h1>How has the number of breaches changed over time?</h1>
+<p>Now we will see if the number of attacks has changed over time. First, we will look at breaches that have affected at least 10 million accounts.</p>
+<p>Now we will consider the larger scales of 10 million and 1 million respectively.</p>
 <pre class="r"><code>data_breach %&gt;%
-  mutate(Substantial = if_else(PwnCount&gt;=1e7,TRUE,FALSE  ), 
+  transmute(Substantial = if_else(PwnCount&gt;=1e7,TRUE,FALSE  ), 
          breachyear = lubridate::year(BreachDate)) %&gt;%
   filter(Substantial == TRUE) %&gt;% 
   group_by(breachyear)%&gt;%
@@ -374,7 +919,6 @@ data_breach %&gt;%
        y=&quot;Number of breaches&quot;,x=&quot;Year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
   theme(panel.background  = element_rect(fill=&quot;black&quot;),
         panel.grid = element_blank(),
-       # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
         panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
        axis.ticks = element_blank(),
         plot.background = element_rect(fill=&quot;black&quot;),
@@ -383,139 +927,14 @@ data_breach %&gt;%
         plot.title = element_text(size=15,face = &quot;bold&quot;),
        plot.title.position = &quot;plot&quot;,
         plot.subtitle = ggtext::element_markdown())</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
-<pre class="r"><code>data_breach %&gt;%
-  mutate(Substantial = if_else(PwnCount&gt;=1e6,TRUE,FALSE  ), #was 1e7
-         breachyear = lubridate::year(BreachDate)) %&gt;%
-  filter(Substantial == TRUE) %&gt;% 
-  group_by(breachyear)%&gt;%
-  count(Substantial) %&gt;%
-  ggplot(aes(x=breachyear,y=n))+
-  geom_col(fill=&quot;#EA7700&quot;)+
-  geom_text(aes(label=n),vjust=-.5,col=&quot;white&quot;)+
-  scale_x_continuous(breaks= seq(2007,2020,1))+
-  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,49) )+ #was 24
-  labs(title=&quot;...the number of big breaches is still increasing&quot;,
-       subtitle = &quot;Plot showing number of breaches affecting at least &lt;span style = &#39;color:#EA7700;&#39;&gt;**one million people**&lt;/span&gt;. \n \nThe number of large data breaches has steadily been increasing over the years.&lt;br&gt;Users must remain vigilant in making sure they use secure passwords and accounts.&quot;,
-       y=&quot;Number of breaches&quot;,x=&quot;Year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
-  theme(panel.background  = element_rect(fill=&quot;black&quot;),
-        panel.grid = element_blank(),
-        # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
-        axis.ticks = element_blank(),
-        plot.background = element_rect(fill=&quot;black&quot;),
-        text = element_text(colour = &quot;white&quot;),
-        legend.position = &quot;none&quot;,
-        plot.title = element_text(face = &quot;bold&quot;, size = 15),
-        plot.title.position = &quot;plot&quot;,
-        plot.subtitle = ggtext::element_markdown())</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
-<pre class="r"><code>data_breach %&gt;%
-  mutate(Substantial = if_else(PwnCount&gt;=1000,TRUE,FALSE  ), #was 1e7
-         breachyear = lubridate::year(BreachDate)) %&gt;%
-  filter(Substantial == TRUE) %&gt;% 
-  group_by(breachyear)%&gt;%
-  count(Substantial) %&gt;%
-  ggplot(aes(x=breachyear,y=n))+
-  geom_col(fill=&quot;#E5BE00&quot;)+
-  geom_text(aes(label=n),vjust=-.5,col=&quot;white&quot;)+
-  scale_x_continuous(breaks= seq(2007,2020,1))+
-  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,99) )+ #was 24
-  labs(title=&quot;The number of data breaches peaked in 2016&quot;,
-       subtitle = &quot;Plot showing number of breaches affecting at least &lt;span style = &#39;color:#E5BE00;&#39;&gt;**one thousand people**&lt;/span&gt;. \n \nThe number of data breache rose quite quickly from just one large data breech in 2007 &lt;br&gt;  to over 90 in less then a decade, but there has been a decrease since the peak in 2016.&quot;,
-       y=&quot;Number of breaches&quot;,x=&quot;Year&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
-  theme(panel.background  = element_rect(fill=&quot;black&quot;),
-        panel.grid = element_blank(),
-        # panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-        panel.grid.major.y = element_line(colour=&quot;grey20&quot;),
-        axis.ticks = element_blank(),
-        plot.background = element_rect(fill=&quot;black&quot;),
-        text = element_text(colour = &quot;white&quot;),
-        legend.position = &quot;none&quot;,
-        plot.title = element_text(face = &quot;bold&quot;, size = 15),
-        plot.title.position = &quot;plot&quot;,
-        plot.subtitle = ggtext::element_markdown())</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
-<pre class="r"><code>data_breach %&gt;% 
-  group_by(IsVerified,IsFabricated,IsSensitive,IsRetired,IsSpamList) %&gt;% 
-  count(sort=TRUE,name = &quot;Number&quot;)</code></pre>
-<pre><code>## # A tibble: 7 x 6
-## # Groups:   IsVerified, IsFabricated, IsSensitive, IsRetired, IsSpamList [7]
-##   IsVerified IsFabricated IsSensitive IsRetired IsSpamList Number
-##   &lt;lgl&gt;      &lt;lgl&gt;        &lt;lgl&gt;       &lt;lgl&gt;     &lt;lgl&gt;       &lt;int&gt;
-## 1 TRUE       FALSE        FALSE       FALSE     FALSE         421
-## 2 TRUE       FALSE        TRUE        FALSE     FALSE          30
-## 3 FALSE      FALSE        FALSE       FALSE     FALSE          26
-## 4 TRUE       FALSE        FALSE       FALSE     TRUE           11
-## 5 FALSE      FALSE        TRUE        FALSE     FALSE           4
-## 6 FALSE      TRUE         TRUE        FALSE     FALSE           2
-## 7 TRUE       FALSE        FALSE       TRUE      FALSE           1</code></pre>
-<pre class="r"><code>data_breach %&gt;%
-  filter(IsSensitive==TRUE) %&gt;% 
-  select(Title,BreachDate,PwnCount) %&gt;%
-  slice_max(order_by = PwnCount,n=10) %&gt;% 
-  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
-  geom_col(fill=&quot;#480FF0&quot;,col=&quot;#906DF6&quot;)+
-  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = &quot;M&quot;) ),hjust=-0.1,col=&quot;white&quot;)+
-  scale_x_continuous(labels=scales::label_number_si(),limits=c(0,1.9e8),expand = c(0,0))+
-  #scale_y_discrete(expand=expansion(0,0))+
-  labs(title=&quot;The biggest senstive data breaches&quot;,subtitle=&quot;A senstive breach can have an adverse affects on site users if discovered&quot;,
-       x=&quot;Number of Accounts Affected&quot;,y=&quot;Site&quot;,caption=&quot;Sorce: haveibeenpwned.com&quot;)+
-    theme(panel.background  = element_rect(fill=&quot;black&quot;),
-    panel.grid = element_blank(),
- #  panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-    panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-    plot.background = element_rect(fill=&quot;black&quot;),
-    text = element_text(colour = &quot;white&quot;),
-    axis.text =element_text(colour = &quot;white&quot;), 
-    plot.title.position = &quot;plot&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
-<p>The biggest data breaches</p>
-<pre class="r"><code>data_breach %&gt;% 
-  #unnest(DataClasses) %&gt;%
-  #filter(DataClasses == &quot;Passwords&quot;) %&gt;%
-  slice_max(order_by=PwnCount,n=10) %&gt;% 
-  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
-  geom_col(fill=&quot;#2915EA&quot;,col=&quot;#7161ed&quot;)+
-  geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = &quot;M&quot;) ) ,col=&quot;white&quot;,hjust=-.1)+
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
-    scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
-  #scale_y_discrete(expand=expansion(0,0))+
-  labs(title=&quot;The biggest data breaches known so far&quot;,subtitle=&quot;Billions of accounts containing personal details such as email adresses and passwords have been leaked.\nThis list only contains the known breaches, there is no telling how many unnoticed major data breaches have occured...&quot;,
-       x=&quot;Number of Accounts Affected&quot;,y=&quot;Data Breach Source&quot;,caption=&quot;Sorce: haveibeenpwned.com&quot;)+
-    theme(panel.background  = element_rect(fill=&quot;black&quot;),
-    panel.grid = element_blank(),
- #  panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-    panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-    plot.background = element_rect(fill=&quot;black&quot;),
-    text = element_text(colour = &quot;white&quot;),
-    axis.text.y =element_text(colour = &quot;white&quot;), 
-    plot.title.position = &quot;plot&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="864" /></p>
-<p>Which were biggest data breaches that contained leaked password details?</p>
-<pre class="r"><code>data_breach %&gt;% 
-  unnest(DataClasses) %&gt;%
-  filter(DataClasses == &quot;Passwords&quot;) %&gt;%
-  slice_max(order_by=PwnCount,n=15) %&gt;% 
-  ggplot(aes(x=PwnCount,y=reorder(Title,PwnCount) ))+
-  geom_col(fill=&quot;#0856F7&quot;,col=&quot;#3675f9&quot;)+
-    geom_text(aes(label=scales::number(PwnCount/1e6,accuracy = 1,suffix = &quot;M&quot;) ) ,col=&quot;white&quot;,hjust=-.1)+
-  scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
-    scale_x_continuous(labels=scales::label_number_si(),limits=c(0,.9e9),expand = c(0,0))+
-  #scale_y_discrete(expand=expansion(0,0))+
-  labs(title=&quot;The data breaches with the most passwords leaked&quot;,subtitle=&quot;Billions of passwords have been leaked&quot;,
-       x=&quot;Number of Accounts Affected&quot;,y=&quot;Data Breach Source&quot;,caption=&quot;Sorce: haveibeenpwned.com&quot;)+
-    theme(panel.background  = element_rect(fill=&quot;black&quot;),
-    panel.grid = element_blank(),
- #  panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-    panel.grid.major.x = element_line(colour=&quot;grey20&quot;),
-    plot.background = element_rect(fill=&quot;black&quot;),
-    text = element_text(colour = &quot;grey40&quot;),
-    plot.title = element_text(colour=&quot;white&quot;),
-    plot.subtitle = element_text(colour=&quot;white&quot;),
-    axis.text.y =element_text(colour = &quot;white&quot;), 
-    plot.title.position = &quot;plot&quot;)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p>We see that while massive breaches have decreased since 2018, there is still an increasing number of big breaches.</p>
+</div>
+<div id="what-else-can-we-find-out" class="section level1">
+<h1>What else can we find out?</h1>
+<p>There are lots more we could find out more specifically by diving deeper into the dataset, but we will finish by looking at when breaches were reported, namely, we will look at the day and month of reported breach date.</p>
 <pre class="r"><code>data_breach %&gt;% 
   mutate( dow =  lubridate::wday(BreachDate,label=TRUE,week_start=1)) %&gt;% 
   group_by(dow) %&gt;% 
@@ -523,18 +942,217 @@ data_breach %&gt;%
   ggplot(aes(x=dow,y=n))+
   geom_col(fill=&quot;dodgerblue4&quot;)+
   geom_text(aes(label=n),vjust=-.4)+
+  labs(title=&quot;Breaches are most commonly reported on a Monday or Thursday&quot;,subtitle=&quot;Day of week of reported breach&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
+       x=&quot;Day of Week&quot;,y=&quot;Number of Breaches&quot;)+
   theme_minimal()+
-  labs(title=&quot;Breaches on a Saturday and Tuestday seem to be the most common&quot;,subtitle=&quot;Saturday seems  the least common&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
-       x=&quot;Day of Week&quot;,y=&quot;Number of Breaches&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+  theme(panel.grid.major.x = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>We see that Monday and Thursday are the days with the most reported breaches, while Saturday is the least common - this shouldn’t be too surprising as Saturday is a weekend. But Sunday, also a weekend, has the third highest number of reported breaches.</p>
 <pre class="r"><code>data_breach %&gt;% 
   mutate( month =  lubridate::month(BreachDate,label=TRUE)) %&gt;% 
   group_by(month) %&gt;% 
   count() %&gt;% 
   ggplot(aes(x=month,y=n))+
-  geom_col(fill=&quot;dodgerblue4&quot;)+
+  geom_col(fill=&quot;cadetblue4&quot;)+
   geom_text(aes(label=n),vjust=-.4)+
+  labs(title=&quot;Summer and Winter are the most common times of year for breaches to occur&quot;,subtitle=&quot;Month of year of breach report&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
+       x=&quot;Month&quot;,y=&quot;Number of Breaches&quot;)+
   theme_minimal()+
-  labs(title=&quot;Summer seems to be the most common time of year for breaches to occur&quot;,subtitle=&quot;January and December are not far behind however&quot;,caption=&quot;Source: haveibeenpwned.com&quot;,
-       x=&quot;Month&quot;,y=&quot;Number of Breaches&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+  theme(panel.grid.major.x = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<p>We see that early Summer is when most breaches are reported generally speaking, but it also appears that the Winder season is also common too. The Summer spike could be explained by individuals being lax or unavailable as it is the Summer holidays, and the Winter spike could be explained by the fact that there are many holiday events taking place or being in the festive spirit.</p>
+<pre class="r"><code>breach_by_dates &lt;-  data_breach %&gt;% 
+  transmute( BreachMonth = lubridate::month(BreachDate,label=TRUE),
+             BreachDay = lubridate::mday(BreachDate)
+             )  %&gt;% 
+  arrange(BreachMonth,BreachDay) %&gt;% 
+  group_by(BreachMonth,BreachDay) %&gt;% 
+  count() %&gt;% 
+  ungroup() 
+
+
+dummy_dates &lt;-  tibble (date = seq(lubridate::ymd(&quot;2020-01-01&quot;), lubridate::ymd(&quot;2020-12-31&quot;), by = &quot;days&quot;)) %&gt;% 
+  mutate( month = lubridate::month(date,label=TRUE),
+          day = lubridate::day(date))
+
+right_join(x=breach_by_dates,y=dummy_dates, by=c(&quot;BreachMonth&quot;=&quot;month&quot;,&quot;BreachDay&quot;=&quot;day&quot;)) %&gt;% 
+  arrange(BreachMonth,BreachDay) %&gt;% 
+  replace_na(list(n=0)) %&gt;% 
+  mutate( n = n/sum(n)*100 ) %&gt;% 
+  ggplot(aes(x=BreachDay,y=reorder(BreachMonth,desc(BreachMonth)) ,fill=n))+
+  geom_tile()+
+  scale_fill_viridis_c(option=&quot;B&quot;,end=0.8,labels=c(&quot;0%&quot;,&quot;2%&quot;,&quot;4%&quot;,&quot;6%&quot;))+
+  scale_y_discrete()+
+  scale_x_continuous(expand = c(0,0), breaks = seq(1,31,7) )+
+  labs(title=&quot;Many data breaches are reported on January 1st&quot;,subtitle =&quot;Percent of breaches reported by day of month across the year&quot;,x=&quot;Day&quot;,y=&quot;&quot;,fill=&quot;% of\nBreaches&quot;,caption=&quot;Source: haveibeenpwned.com&quot;)+
+  theme(panel.background = element_blank(),
+        axis.ticks.y = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p>It is evident that the first day of the year is the day where most breaches are reported, though why this is the case I’m not entirely sure.</p>
+<p>Sometimes bad news gets dumped on days when a major story has broken or people are busy focusing on something else, this way the bad news does not get as much attention as it normally would on an “ordinary” day. This is slightly cynical, but perhaps announcing hacks on New Year’s Day follows this trend? But this doesn’t explain why lots of reports of breaches are reported on the first day of a month.</p>
+<pre class="r"><code>breach_by_dates %&gt;%
+  arrange(-n) %&gt;% 
+  rename(&quot;Number of Reported Breaches&quot;=n) %&gt;% 
+  slice_head(n=10) %&gt;% 
+  kableExtra::kbl(caption = &quot;10 most common day of months for breaches to be reported&quot; ,align = &quot;c&quot;) %&gt;% 
+  kableExtra::kable_styling(bootstrap_options = c(&quot;striped&quot;,&quot;condensed&quot;),full_width = F)</code></pre>
+<table class="table table-striped table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:unnamed-chunk-20">Table 4: </span>10 most common day of months for breaches to be reported
+</caption>
+<thead>
+<tr>
+<th style="text-align:center;">
+BreachMonth
+</th>
+<th style="text-align:center;">
+BreachDay
+</th>
+<th style="text-align:center;">
+Number of Reported Breaches
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">
+Jan
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+32
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Jul
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+19
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Jun
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+11
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Dec
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+9
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Mar
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+8
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Sep
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+8
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Apr
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+7
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Aug
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+6
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Feb
+</td>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:center;">
+5
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+Feb
+</td>
+<td style="text-align:center;">
+20
+</td>
+<td style="text-align:center;">
+4
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>Let’s look back at the questions asked earlier and answer them here:</p>
+<ul>
+<li><strong>What type of information is being stolen?</strong></li>
+</ul>
+<p>The five most common types of information stolen are: emails addresses, passwords, usernames, IP addresses, and personal names.</p>
+<ul>
+<li><strong>How has the number of data breaches changed over time?</strong></li>
+</ul>
+<p>From 2007 onwards, there has been a gradual increase in the number of breaches affecting at least 1,000 people.
+From just one breach in 2007, to 48 in 2020, with a peak of 90 in 2016.</p>
+<ul>
+<li><strong>What were the scales of breaches, and did they also change over time?</strong></li>
+</ul>
+<p>Typically the smallest breaches affects thousands of people, while the largest affects hundreds of millions. From simply viewing the data on figure <a href="#fig:plotboxlog">3</a>, there does not appear to be any change in the average scale of breaches over time.</p>
+<div id="final-thoughts" class="section level2">
+<h2>Final thoughts</h2>
+<p>This ends our look into the data of data breaches. As stressed earlier, the data does not cover every breach that has ever happened. There could be many breaches that have happened that occurred on a massive scale and breadth that has not been publicly disclosed.</p>
+<p>From my understanding of the data, it doesn’t seem to include data breaches or cyber-attacks conducted by state level actors; the scale of attacks committed at this level could be extremely high.</p>
+<p>In any case, I personally don’t think we’ll ever know the true scale of all data breaches committed.</p>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://nordpass.com/most-common-passwords-list/">Most common passwords 2020</a> - Nordpass<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

@@ -1,5 +1,5 @@
 ---
-title: Hello World Part 2!
+title: Hello World!
 author: ''
 date: '2020-12-16'
 slug: []
@@ -11,56 +11,17 @@ topics: []
 
 
 
-**UPDATE**: This is a test to see if the page will dynamically update the code chunks
-
-
-```{r}
-Sys.time()
-runif(1)
-```
 
 
 <p align='center'>
-<img src="/images/sun-rise.jpg" width="800" height="400">
+<img src="/images/sun-rise.jpg" width="800" height="300">
 </p>
 
 
-This works! We can also customise easily it's dimensions
+Hello World!
 
+This will be a blog where I will post things mainly related to data. This may be analysis of data that I find interesting or it may be on something current. There is also the chance that I post things that are completely unrelated to data.
 
+I am writing this blog as a way of documenting my work and being able to easily collate everything into one place; this will mean that it will be easy for me or anyone else to follow my work.
 
-The image below also works, but it does not display on the creation side. Replacing the "/images/..." with "/static/images/..." renders on on creation side but not production side.
-
-Example:
-
-* This does not render on creation side, but does on production
-
-![cool sunrise](/images/sun-rise.jpg)
-
-
-* Whereas this does render creations side, but does not for productions.
-
-
-![cool sunrise](/static/images/sun-rise.jpg)
-
-
-START CODE IMAGE
-
-```{r sunrise, echo=FALSE, out.width = '100%'}
-#knitr::include_graphics("images/sun-rise.jpg", error=FALSE)
-knitr::include_graphics("/images/sun-rise.jpg", error=FALSE)
-```
-
-
-
-
-END CODE IMAGE
-
-
-Tweet shortcode
-
-
-```{r echo=FALSE}
-blogdown::shortcode('tweet', '852205086956818432')
-```
-
+I don't know where this blog will take me, but I am sure it will be a fun journey.
