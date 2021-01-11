@@ -1,0 +1,760 @@
+---
+title: London in Lockdown - A 2020 Mobility Review
+author: ''
+date: '2021-01-08'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+<script src="index_files/kePrint/kePrint.js"></script>
+<link href="index_files/lightable/lightable.css" rel="stylesheet" />
+<link href="index_files/bsTable/bootstrapTable.min.css" rel="stylesheet" />
+<script src="index_files/bsTable/bootstrapTable.js"></script>
+
+
+<p>It goes without saying that 2020 was a year unlike any other, coronavirus has had a massive global impact that has seeped into every corner of our lives.</p>
+<p>As I live in London, I want to see what effects it has had on the way people have gone about their daily lives in London. So today I will be looking at the data about Londoners and their lives during 2020, more specifically, how did their movements to places such as: homes, workplaces, parks, shops, and transport locations changed over the year.</p>
+<p>I will explore two datasets. The first is from the <a href="https://www.gov.uk/government/statistics/transport-use-during-the-coronavirus-covid-19-pandemic">Department of Transport</a> and shows the usage of transport in the UK and the change from 2019. We will only focus on Transport for London (TfL) services.</p>
+<p>The second dataset is from the <a href="https://www.google.com/covid19/mobility/">Google Covid-19 Community Mobility Reports</a>, and it explores the change in the number of visitors from a baseline average taken before the pandemic at various regional levels for many different countries. The regional levels are from a state level down to a local province level. We will focus only on London, and in particular, it’s boroughs.</p>
+<p>Both datasets were collected on 6th January 2021, so there may be slight changes for the newest values in the future, but the difference shouldn’t be too great. Now let us explore the first dataset.</p>
+<div id="transport-for-london-services" class="section level1">
+<h1>Transport for London services</h1>
+<pre class="r"><code>library(tidyverse)
+library(geofacet)
+library(ggtext)
+library(grid)
+
+options(kableExtra.html.bsTable = TRUE)
+#knitr::opts_chunk$set(dpi = 300)</code></pre>
+<pre class="r"><code>transport &lt;-  read_csv(here::here(&quot;static&quot;,&quot;data&quot;,&quot;UK2020Travel.csv&quot;))
+
+transport &lt;- janitor::clean_names(transport) %&gt;% 
+  select(date,tube = transport_for_london_tube, bus = transport_for_london_bus) %&gt;%
+  mutate( date = lubridate::dmy(date),
+          across( tube:bus , ~ (1/100) * as.double(str_remove_all(.x,&#39;[.%]&#39;)) -1   )
+  )</code></pre>
+<pre class="r"><code>glimpse(transport)</code></pre>
+<pre><code>## Rows: 310
+## Columns: 3
+## $ date &lt;date&gt; 2020-03-01, 2020-03-02, 2020-03-03, 2020-03-04, 2020-03-05, 2...
+## $ tube &lt;dbl&gt; 0.04, -0.05, -0.05, -0.05, -0.08, -0.08, -0.09, -0.13, -0.10, ...
+## $ bus  &lt;dbl&gt; 0.02, -0.03, -0.04, -0.03, -0.08, -0.04, -0.07, -0.05, -0.05, ...</code></pre>
+<p>The first dataset is of Transport for London services. The data was collected from entry/exit data for Tube stations and tap-in data for the buses. There was a period of time where the tap-in data was unavailable due to a change in policy to ensure driver safety<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> meaning there will be missing data for bus usage.</p>
+<p>We see the rates of usage as a percent of the equivalent day in 2019, for tube and bus services. By plotting the data, we can see what the trend was for these transport services.</p>
+<p>In the time period of the data, London went into lockdown twice, and went under various levels of restrictions. So by labelling these occasions on a graph, we can see what effect lockdowns and restrictions had on usage rates.</p>
+<pre class="r"><code>lockdown_ann &lt;-  function(start_date,end_date,fill=&quot;orange&quot;,text=FALSE,label=label,vjust=3,size=3){
+  # Helper function to create annotations for plots
+  if (text == FALSE){
+    annotate(geom=&quot;rect&quot;,xmin= start_date , xmax = end_date , ymin= -Inf, ymax = Inf ,alpha=0.2, fill=fill) 
+  }
+  else{annotate(geom=&quot;text&quot;,x= (start_date-end_date )/2 + end_date,
+                y=Inf,
+                label=label,vjust=vjust,alpha=0.5,size=size)
+  }
+}
+
+# Set the dates for the start and end of lockdown periods
+
+lockdown_1_start &lt;- as.Date(&quot;2020-03-23&quot;) 
+lockdown_1_end &lt;-  as.Date(&quot;2020-05-10&quot;)
+
+lockdown_2_start &lt;- as.Date(&quot;2020-11-05&quot;)
+lockdown_2_end &lt;-  as.Date(&quot;2020-12-02&quot;)
+
+tier_3_start &lt;- as.Date(&quot;2020-12-16&quot;)
+tier_3_end &lt;-  as.Date(&quot;2020-12-19&quot;)
+  
+tier_4_start &lt;- as.Date(&quot;2020-12-19&quot;)
+tier_4_end   &lt;- as.Date(&quot;2021-01-04&quot;)
+
+
+lockdown_1 &lt;-  lockdown_ann(lockdown_1_start ,lockdown_1_end)
+lockdown_1_text &lt;-  lockdown_ann(lockdown_1_start ,lockdown_1_end,text=TRUE,label=&quot;1st\nLockdown&quot;)
+
+lockdown_2 &lt;-  lockdown_ann(lockdown_2_start,lockdown_2_end)
+lockdown_2_text &lt;-  lockdown_ann(lockdown_2_start,lockdown_2_end,text=TRUE,label=&quot;2nd\nLockdown&quot;)
+
+tier3 &lt;-  lockdown_ann(tier_3_start,tier_3_end,fill=&quot;yellow&quot;)
+tier3_text &lt;-  lockdown_ann(tier_3_start,tier_3_end,text=TRUE,label=&quot;Tier\n3&quot;)
+
+tier4 &lt;- lockdown_ann(tier_4_start,tier_4_end,fill=&quot;yellow3&quot;)
+tier4_text &lt;- lockdown_ann(tier_4_start,tier_4_end,text=TRUE,label=&quot;Tier\n4&quot;)</code></pre>
+<pre class="r"><code>transport %&gt;% 
+  pivot_longer( cols= (tube:bus) , names_to = &quot;transport_mode&quot;, values_to = &quot;rate&quot;  ) %&gt;% 
+  #na.omit() %&gt;% 
+  ggplot(aes(x=date,y=rate,group=transport_mode,col=transport_mode))+
+  geom_line()+
+  lockdown_1 +
+  lockdown_1_text +
+  lockdown_2 +
+  lockdown_2_text +
+  tier3+
+  tier3_text+
+  tier4+
+  tier4_text+
+  geom_hline(yintercept = 0,lty=2, alpha=0.4)+
+  annotate(geom=&quot;text&quot;,label=&quot;Previous year\nbaseline&quot;, x = as.Date(&quot;2020-08-09&quot;),y=0,vjust=.5,alpha=0.6 )+
+  scale_y_continuous(labels = scales::percent_format())+
+  scale_x_date( breaks = seq(as.Date(&quot;2020-03-01&quot;), as.Date(&quot;2021-01-04&quot;),by=&quot;2 week&quot; ) ,labels = scales::label_date_short() )+
+  labs(title=&quot;Transport for London (TfL) services in 2020 saw a massive decline in usage from 2019&quot;, 
+       subtitle = &quot;2020 passenger numbers for TfL services as percent change from equivalent day and week in 2019&quot;,
+       x=&quot;&quot;,
+       y=&quot;Percent change&quot;,
+       col=&quot;Service&quot;,
+       caption=&quot;Source: Department of Transport statistics&quot;)+
+  theme_bw()+
+  scale_color_manual(values = c(&quot;#da291c&quot;,&quot;#10069F&quot;),labels=c(&quot;Bus&quot;,&quot;Tube&quot;))+
+  theme(legend.position = &quot;top&quot;,
+        panel.grid.minor.x = element_blank(),
+        plot.title.position = &quot;plot&quot;,
+        plot.caption.position = &quot;plot&quot;)+
+  guides(color = guide_legend(override.aes = list(size = 3)))</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="768" /></p>
+<p>We see the usage of the transport services as a percent change of the previous year. To interpret this, as an example, on the 19th August 2020, the percent change for the tube was -75%, meaning that day saw only 25% of the number of people using the tube from 2019 in 2020 on that specific day.</p>
+<ul>
+<li><p>From the trend of the graph TfL services saw a drop in passenger numbers using the tube or buses. Even before the first lockdown, it is evident that more and more people were not using those services.</p></li>
+<li><p>During the first lockdown, and in the first half of lockdown for buses, the change from the previous year remained relatively constant - there is some variation due to the weekday/weekend effect.</p></li>
+<li><p>As the first lockdown ends the numbers start to recover somewhat from late Spring to mid Summer.From the end of August to the beginning of the second lockdown, the average value is constant before seeing a jump in usage immediately before the 2nd lockdown. Once the lockdown is underway, the percentage change drops.</p></li>
+<li><p>There is a brief recovery as the 2nd lockdown is eased, however it is short-lived as London is once again forced into restrictions by being placed at tier 3, while then being upgraded to the worse tier 4 level only a few day days. Tier 4 is essentially a lockdown, but on a local level rather than a national one. The restrictions led to a decline in passenger numbers from the same time last year.</p></li>
+</ul>
+<p>We can compare how the passengers numbers changed from the baseline during the two lockdowns, in particular, the numbers changing during the weekday and weekends. It is important to do this as the behaviour and movement of people is influenced by the day of week; a simple example is many people travelling to work on Monday to Friday, but not Saturday or Sunday.</p>
+<pre class="r"><code>transport %&gt;% 
+  mutate( lockdown =  case_when(date &gt;= lockdown_1_start &amp;  date &lt;= lockdown_1_end   ~ &quot;1st Lockdown&quot;,
+                                date &gt;= lockdown_2_start  &amp;  date &lt;= lockdown_2_end    ~ &quot;2nd Lockdown&quot;,
+                                TRUE ~ &quot;none&quot;)) %&gt;% 
+  filter(lockdown != &quot;none&quot;) %&gt;% 
+  pivot_longer(cols = tube:bus, names_to = &quot;service&quot;) %&gt;% 
+  na.omit() %&gt;% 
+  mutate( day_of_week    =  if_else (lubridate::wday(date,label=TRUE)  %in% c(&quot;Sun&quot;,&quot;Sat&quot;), &quot;Weekend&quot;, &quot;Weekday&quot;)     ) %&gt;% 
+  group_by(service,lockdown,day_of_week) %&gt;% 
+  summarise( avg_change =  paste(  round(mean(value)*100,1) ,&quot;%&quot;) ,.groups=&quot;drop&quot;  ) %&gt;% 
+  pivot_wider(names_from= lockdown, values_from = avg_change) %&gt;% 
+  pivot_wider(names_from = day_of_week, values_from =   c(&quot;1st Lockdown&quot;,&quot;2nd Lockdown&quot;) ) %&gt;%
+  select(service,&quot;1st Lockdown_Weekday&quot;,&quot;2nd Lockdown_Weekday&quot;,&quot;1st Lockdown_Weekend&quot;,&quot;2nd Lockdown_Weekend&quot;) %&gt;% 
+  kableExtra::kable(col.names = c(&quot;Service&quot;,&quot;1st Lockdown&quot;,&quot;2nd Lockdown&quot;,&quot;1st Lockdown&quot;,&quot;2nd Lockdown&quot;),align = &quot;rcccc&quot; ,caption = &quot;Average percent change from baseline for TfL services during lockdowns grouped by day of week and lockdown&quot; , ) %&gt;% 
+  kableExtra::kable_styling(bootstrap_options = c(),full_width = F) %&gt;% 
+  kableExtra::add_header_above(c(&quot; &quot; = 1, &quot;Weekday&quot; = 2, &quot;Weekend&quot; = 2)  ) %&gt;% 
+  kableExtra::column_spec(column = c(2,3),background = &quot;#F8F7F7&quot; )   %&gt;% 
+  kableExtra::kable_classic( html_font = &quot;Helvetica&quot;)</code></pre>
+<table class="table lightable-classic" style="width: auto !important; margin-left: auto; margin-right: auto; font-family: Helvetica; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:unnamed-chunk-6">Table 1: </span>Average percent change from baseline for TfL services during lockdowns grouped by day of week and lockdown
+</caption>
+<thead>
+<tr>
+<th style="empty-cells: hide;border-bottom:hidden;" colspan="1">
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Weekday
+</div>
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Weekend
+</div>
+</th>
+</tr>
+<tr>
+<th style="text-align:right;">
+Service
+</th>
+<th style="text-align:center;">
+1st Lockdown
+</th>
+<th style="text-align:center;">
+2nd Lockdown
+</th>
+<th style="text-align:center;">
+1st Lockdown
+</th>
+<th style="text-align:center;">
+2nd Lockdown
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+bus
+</td>
+<td style="text-align:center;background-color: #F8F7F7 !important;">
+-81.6 %
+</td>
+<td style="text-align:center;background-color: #F8F7F7 !important;">
+-51.2 %
+</td>
+<td style="text-align:center;">
+-83.9 %
+</td>
+<td style="text-align:center;">
+-60.5 %
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+tube
+</td>
+<td style="text-align:center;background-color: #F8F7F7 !important;">
+-94.4 %
+</td>
+<td style="text-align:center;background-color: #F8F7F7 !important;">
+-76.2 %
+</td>
+<td style="text-align:center;">
+-95.9 %
+</td>
+<td style="text-align:center;">
+-81.9 %
+</td>
+</tr>
+</tbody>
+</table>
+<p>We see from Table 1 that the numbers of people using buses dropped by 81.6% on weekdays and 83.9% on weekends. For the tube, we see an even bigger percentage decrease for weekdays and weekends, with values of 94.4% and 95.9% respectively.</p>
+<p>The second lockdown saw a recovery in passenger numbers across the board. On weekdays, buses recovered from a 81.6% decrease to a 51.2% decrease. The smaller negative percent change means it is returning to the baseline average from pre-pandemic times.</p>
+<p>This means the second lockdown saw a closer return to pre-pandemic levels than the first lockdown in terms of percentage of passenger numbers.</p>
+</div>
+<div id="london-mobility" class="section level1">
+<h1>London Mobility</h1>
+<p>The second dataset is from the Google Covid-19 Community Mobility Report, which shows how visits to certain places changed over the course of 2020 from a baseline value. The baseline value is taken as the median value for the corresponding day of week in the period 3rd Jan - 6th Feb 2020.</p>
+<p>The data is from the sample of Google users who have opted-in to Location History on their Google accounts. While the sample is not completely representative of the entire population, we can assume that it is sufficient for our purpose. This is because not everyone will have a Google account, and not every Google account holder will choose to opt-in, but we can assume the sample is large enough to represent as our population.</p>
+<p>The locations looked at are:</p>
+<ul>
+<li><p><strong>Residential</strong> - The data here looks at the amount of time spent at these residential places, rather than the number of people</p></li>
+<li><p><strong>Workplaces</strong> - Mobility trend for places of work</p></li>
+<li><p><strong>Parks</strong> - Mobility trend at locations include local parks, national parks, public beaches, public gardens, and castles (anyone fancy a trip to test their eyesight?)</p></li>
+<li><p><strong>Transit Stations</strong> - Mobility trend in places like train stations, bus stops, and subway stations</p></li>
+<li><p><strong>Retail and Recreation</strong> - Mobility trend at locations like restaurants, cafes, shopping centres, theme parks, museums, libraries, and cinemas</p></li>
+<li><p><strong>Grocery &amp; pharmacy</strong> - Mobility trends for places like supermarkets, food warehouses, farmers markets, specialty food shops, and pharmacies</p></li>
+</ul>
+<p>Google has also noted several things to keep in mind when looking at the data:<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+<ul>
+<li><p>Avoid comparing day-to-day comparisons, especially with weekends and weekdays, as there are seven baselines values being compared, one for each day of the week. This seasonality will also show up in our graphs resulting in “spiky” changes. Behaviour is different for weekdays and weekends.</p>
+<p>Take the example of workplaces, if fewer people go to work on a Sunday than a weekday before the pandemic, then only a small fraction of those would go to work on a Sunday during the pandemic, so since this small value is only changing a little, we would only get a small percentage change, meaning those values will be very close to our baseline. This will contrast with the weekdays which a much larger percent of the working population not working at their normal locations.</p></li>
+<li><p>There may be large changes in the mobility trend because of the weather or public holidays. People are more likely to visit these locations when the weather is good or if it’s a public holiday.</p></li>
+<li><p>There may be gaps in data due to data quality and privacy issues. Thus, the missing data should be treated as true unknowns.</p></li>
+</ul>
+<p>With that out of the way we can explore the data.</p>
+<pre class="r"><code>#### This is a cleaning script that used the data downloaded direct from Google
+
+###   For some reason the website does not like to handle this data, 
+###   so I was forced to save it as an .rds file and load that in
+
+# london_mobility &lt;- read_csv(here::here(&quot;static&quot;,&quot;data&quot;,&quot;2020_GB_Region_Mobility_Report.csv&quot;),col_types = &quot;ccccccccdddddd&quot;)
+#
+# london_mobility  &lt;- london_mobility %&gt;%
+#   filter(sub_region_1 == &quot;Greater London&quot;) %&gt;%
+#     select(-country_region,-country_region_code,-metro_area,-census_fips_code,
+#            ) %&gt;%
+#    mutate( date = lubridate::dmy(date)) %&gt;%
+#   rename_with(.,ends_with(&quot;baseline&quot;), .fn = ~ str_remove_all(.,&quot;_percent_change_from_baseline&quot;)) %&gt;%
+#   mutate(sub_region_2 = replace_na(sub_region_2,&quot;All&quot;) ) %&gt;%
+#   mutate(sub_region_2 = str_remove_all(sub_region_2,&quot;^London Borough of |^Royal Borough of &quot;  )    )
+#
+# saveRDS(london_mobility,file = &quot;london_mobility.rds&quot;)</code></pre>
+<pre class="r"><code>london_mobility &lt;- readRDS(here::here(&quot;static&quot;,&quot;data&quot;,&quot;london_mobility.rds&quot;))
+
+all_mobility &lt;- london_mobility %&gt;% 
+  filter(sub_region_2 == &quot;All&quot;) %&gt;% 
+  select(date:residential) %&gt;% 
+  pivot_longer(retail_and_recreation:residential) %&gt;%
+  mutate( name =  str_replace_all(name,&quot;_&quot;,&quot; &quot;)  ) %&gt;% 
+  mutate( name = str_to_title(name)) %&gt;%
+  mutate( value = (value)/100 )
+
+glimpse(all_mobility)</code></pre>
+<pre><code>## Rows: 1,944
+## Columns: 3
+## $ date  &lt;date&gt; 2020-02-15, 2020-02-15, 2020-02-15, 2020-02-15, 2020-02-15, ...
+## $ name  &lt;chr&gt; &quot;Retail And Recreation&quot;, &quot;Grocery And Pharmacy&quot;, &quot;Parks&quot;, &quot;Tr...
+## $ value &lt;dbl&gt; -0.11, -0.08, -0.34, -0.10, -0.03, 0.02, -0.09, -0.11, -0.41,...</code></pre>
+<pre class="r"><code># This is to help for annotations for a single facet_grid
+ann_text &lt;-  data.frame(name=&quot;Parks&quot;,
+                        date= as.Date(c(&quot;2020-04-16&quot;,&quot;2020-11-18&quot;,&quot;2020-12-27&quot;,&quot;2020-08-09&quot;)  ),
+                        label=c(&quot;1st\nLockdown&quot;,&quot;2nd\nLockdown&quot;,&quot;Tier\n4&quot;,&quot;Baseline&quot;),
+                        value=c(Inf,Inf,Inf,-0.2))
+
+colour_codes &lt;- c(
+  &quot;Retail And Recreation&quot; = &quot;#2266DD&quot; ,
+  &quot;Grocery And Pharmacy&quot; = &quot;#42BDA1&quot;,
+  &quot;Parks&quot; = &quot;forestgreen&quot;,
+  &quot;Transit Stations&quot; = &quot;#F10E8D&quot; ,
+  &quot;Workplaces&quot; = &quot;#A96256&quot;,
+  &quot;Residential&quot; = &quot;#4317CD&quot;)
+
+all_mobility %&gt;% 
+  ggplot(aes(x=date,y=value,col=factor(name) ))+
+  geom_line()+
+  geom_hline(yintercept = 0,lty=2,alpha=0.8,size=1)+
+  lockdown_1 +
+  lockdown_2 +
+  tier3+
+  tier4+
+  facet_wrap(.~ fct_relevel( name ,&quot;Parks&quot;),scales = &quot;free_y&quot;,ncol=2)+
+  scale_x_date( breaks = seq(as.Date(&quot;2020-02-15&quot;), as.Date(&quot;2021-01-04&quot;),by=&quot;4 week&quot; ) ,labels = scales::label_date_short() )+
+  scale_y_continuous(labels = scales::percent_format() )+
+  scale_color_manual(values = colour_codes)+
+  labs(title=&quot;During the pandemic, Londoners changed their behaviour and spent more time at home&quot;,
+       subtitle = &quot;Percentage change of mobility for various locations from a baseline value\ntaken from the day of week median in the period 3 Jan - 6 Feb 2020&quot;,
+       x=&quot;&quot;,
+       y=&quot;Percent difference from baseline&quot;,
+       caption=&quot;Source: Google COVID-19 Community Mobility Reports&quot;)+
+  theme_bw()+
+  theme(legend.position = &quot;none&quot;,
+        panel.grid.minor = element_blank(),
+        plot.title.position = &quot;plot&quot;,
+        plot.caption.position = &quot;plot&quot;
+  )+
+  geom_text(data = ann_text,aes(label=label),vjust=1.2,col=&quot;black&quot;,alpha=0.6,size=3)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="768" /></p>
+<p>We can interpret the plot as the following: For transit stations on the 11th March, the percent change was -75% from the baseline value. This means that the number of people at the park only 25% of the day of week average in the period 3rd Jan - 6 Feb 2020.</p>
+<p>There are interesting pieces of information here. First I will state the obvious.</p>
+<ul>
+<li><p>People were staying at home much more regularly than they did before the pandemic - but it’s not like they had any choice.</p></li>
+<li><p>There was an element of panic buying before the first lockdown, where the number of people spent at groceries and pharmacies was around 30% higher than the baseline average for the population of London. There has been a steady increase since the first lockdown, but the numbers at these locations has never fully recovered to pre-pandemic levels, except for Christmas holiday season.</p>
+<p>This exception is likely due to London being placed on into tier 4 during Christmas, which forced individuals to celebrate Christmas with fewer people, thereby leading to a slight increase in visits to supermarkets as more people are buying food for their own Christmas party.</p></li>
+<li><p>Parks remained slightly quieter than usual during the two lockdowns, but during Summer, a huge number of people visited parks, with a 150% increase seen on the 25th of May - but this was mainly due to better weather during Summer and the fact it was a Bank Holiday.</p></li>
+<li><p>Retail and Recreation took a severe blow when the lockdowns were enforced. The first lockdown saw a 75% drop in the number of people at these locations when compared to the baseline.</p>
+<p>The effects of the “Eat Out to Help Out” scheme are visible during August; where the price of food at restaurants was discounted on certain days of the week, on behalf of the Government, in an effort to get people to get out and build some confidence in returning some form of normality and to support businesses. Here We see much more variation in the rate of people visiting restaurants. But as the scheme ended by September, so did the flow of people eating out. Since the end of August, there has been a steady decrease at the rate of people visiting restaurants.</p>
+<p>There was a spike before the second lockdown before the average percent change decrease to about 63% from the baseline. There was a brief recovery after the second lockdown, but the percent change steadly declined for the rest of the year.</p></li>
+<li><p>For transit stations, we see confirmation of what we witnessed earlier where the number of people using public transport was reduced from pre-pandemic levels.</p></li>
+<li><p>Workplaces were emptied during the first lockdown but recovered slowly to just over 75% of what they were. The second lockdown saw an increase in the number of people at the workplace when compared to the first lockdown, namely from around 30% it increased to 55%.</p></li>
+</ul>
+<div id="change-of-behaviour-between-lockdowns" class="section level2">
+<h2>Change of behaviour between lockdowns?</h2>
+<p>Let’s see how the rates changed between lockdowns</p>
+<pre class="r"><code>lockdown_change &lt;- all_mobility %&gt;% 
+  mutate( lockdown =  case_when(date &gt;= as.Date(&quot;2020-03-23&quot;) &amp;  date &lt;= as.Date(&quot;2020-05-10&quot;)   ~ &quot;1st Lockdown&quot;,
+                                date &gt;= as.Date(&quot;2020-11-05&quot;) &amp;  date &lt;= as.Date(&quot;2020-12-02&quot;)   ~ &quot;2nd Lockdown&quot;,
+                                TRUE ~ &quot;none&quot;)) %&gt;% 
+  filter(lockdown != &quot;none&quot;) %&gt;% 
+  mutate( day_of_week    =  if_else (lubridate::wday(date,label=TRUE)  %in% c(&quot;Sun&quot;,&quot;Sat&quot;), &quot;Weekend&quot;, &quot;Weekday&quot;)     ) %&gt;% 
+  group_by(name,lockdown,day_of_week) %&gt;% 
+  summarise( avg_change =   mean(value),.groups=&quot;drop&quot;  )
+
+lockdown_change %&gt;% 
+  mutate(avg_change =   paste(  round(avg_change*100,1) ,&quot;%&quot;)  ) %&gt;% 
+  pivot_wider(names_from = lockdown,values_from = avg_change) %&gt;% 
+  pivot_wider(names_from = day_of_week, values_from=c(&quot;1st Lockdown&quot;,&quot;2nd Lockdown&quot;) ) %&gt;% 
+  select(name,&quot;1st Lockdown_Weekday&quot;,&quot;2nd Lockdown_Weekday&quot;,&quot;1st Lockdown_Weekend&quot;,&quot;2nd Lockdown_Weekend&quot;) %&gt;% 
+  kableExtra::kable(col.names = c(&quot;Location&quot;,&quot;1st Lockdown&quot;,&quot;2nd Lockdown&quot;,&quot;1st Lockdown&quot;,&quot;2nd Lockdown&quot;),align = &quot;rcccc&quot; ,caption = &quot;Average percent change from baseline for mobility during lockdowns grouped by day of week and lockdown&quot; , ) %&gt;% 
+  kableExtra::kable_styling(bootstrap_options = c(&quot;striped&quot;),full_width = F) %&gt;% 
+  kableExtra::add_header_above(c(&quot; &quot; = 1, &quot;Weekday&quot; = 2, &quot;Weekend&quot; = 2)  ) %&gt;% 
+  kableExtra::kable_classic( html_font = &quot;Helvetica&quot;)</code></pre>
+<table class="table table-striped lightable-classic" style="width: auto !important; margin-left: auto; margin-right: auto; font-family: Helvetica; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:unnamed-chunk-10">Table 2: </span>Average percent change from baseline for mobility during lockdowns grouped by day of week and lockdown
+</caption>
+<thead>
+<tr>
+<th style="empty-cells: hide;border-bottom:hidden;" colspan="1">
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Weekday
+</div>
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Weekend
+</div>
+</th>
+</tr>
+<tr>
+<th style="text-align:right;">
+Location
+</th>
+<th style="text-align:center;">
+1st Lockdown
+</th>
+<th style="text-align:center;">
+2nd Lockdown
+</th>
+<th style="text-align:center;">
+1st Lockdown
+</th>
+<th style="text-align:center;">
+2nd Lockdown
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+Grocery And Pharmacy
+</td>
+<td style="text-align:center;">
+-31.6 %
+</td>
+<td style="text-align:center;">
+-15.4 %
+</td>
+<td style="text-align:center;">
+-39.9 %
+</td>
+<td style="text-align:center;">
+-19.4 %
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Parks
+</td>
+<td style="text-align:center;">
+-14.7 %
+</td>
+<td style="text-align:center;">
+-6.3 %
+</td>
+<td style="text-align:center;">
+-26 %
+</td>
+<td style="text-align:center;">
+-6.9 %
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Residential
+</td>
+<td style="text-align:center;">
+33.3 %
+</td>
+<td style="text-align:center;">
+20.5 %
+</td>
+<td style="text-align:center;">
+19.6 %
+</td>
+<td style="text-align:center;">
+13.1 %
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Retail And Recreation
+</td>
+<td style="text-align:center;">
+-78.5 %
+</td>
+<td style="text-align:center;">
+-60.1 %
+</td>
+<td style="text-align:center;">
+-83.5 %
+</td>
+<td style="text-align:center;">
+-65 %
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Transit Stations
+</td>
+<td style="text-align:center;">
+-77.1 %
+</td>
+<td style="text-align:center;">
+-58.2 %
+</td>
+<td style="text-align:center;">
+-75.3 %
+</td>
+<td style="text-align:center;">
+-60.4 %
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Workplaces
+</td>
+<td style="text-align:center;">
+-75.3 %
+</td>
+<td style="text-align:center;">
+-49.5 %
+</td>
+<td style="text-align:center;">
+-58.1 %
+</td>
+<td style="text-align:center;">
+-33.2 %
+</td>
+</tr>
+</tbody>
+</table>
+<p>We see that for all locations, apart from residential, there was an increase from the first to second lockdown in the percent of people at those locations. While people spent less time at home during the second lockdown than the first.</p>
+<p>We can also display the above results into a plot.</p>
+<pre class="r"><code>lockdown_change %&gt;% 
+  mutate( name = fct_reorder2( name,.x =lockdown,.y =avg_change   )  ) %&gt;% 
+  ggplot(aes(x=lockdown,y=avg_change,col=name,group=name))+
+  geom_point(size=2)+
+  geom_line()+
+  facet_wrap(.~day_of_week)+
+  scale_y_continuous(labels = scales::percent_format(), breaks =  seq(-1,1,0.25 ))+
+  scale_color_manual (values = colour_codes)+
+  geom_hline(yintercept=0,lty=2,size=1)+
+  annotate(geom=&quot;text&quot;,label=&quot;Baseline&quot;,x= 1.5,y=0,alpha=0.6,vjust=-0.4)+
+  labs(title=&quot;The second lockdown saw Londoners spending less time at home\nand more at other locations&quot;,
+       subtitle = &quot;Average percent change from baseline in mobility during lockdowns&quot;,
+       caption = &quot;Source: Google COVID-19 Community Mobility Reports&quot;,
+       col=&quot;Location&quot;,
+       x=&quot;&quot;,
+       y=&quot;Average percent change&quot;)+
+  theme_bw()+
+  theme()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>We clearly see that trends from the first lockdown to the second, where for all locations, expect for residential places, there were more people visiting them in the second lockdown than in the first. While the time spent at home is greater than the baseline during the second lockdown, it fell when compared to the first lockdown. This meant people were spending less time at home for the second lockdown than the first.</p>
+<p>Essentially, the trend appears to suggest that Londoner are going back to pre-pandemic behaviour. Is this a hint of lockdown fatigue?</p>
+<p>As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisors, that people are not adhering to the rules as much. Perhaps some in another blog post I will look to see the differences between the 3 lockdowns.</p>
+<p>For now let’s view the average weekly trend.</p>
+<pre class="r"><code>ann_text &lt;-  data.frame(name=&quot;Parks&quot;,
+                        date= as.Date(c(&quot;2020-04-16&quot;,&quot;2020-11-18&quot;,&quot;2020-12-27&quot;,&quot;2020-08-09&quot;)  ),
+                        label=c(&quot;1st\nLockdown&quot;,&quot;2nd\nLockdown&quot;,&quot;Tier\n4&quot;,&quot;Baseline&quot;),
+                        roll_avg=c(Inf,Inf,Inf,0.0))
+
+all_mobility %&gt;% 
+  group_by(name) %&gt;% 
+  summarise( roll_avg = zoo::rollmean(value,7,align=&quot;right&quot;,fill=NA),.groups=&quot;keep&quot;) %&gt;% 
+  mutate( date = seq(  min(london_mobility$date) , max(london_mobility$date) ,by=&quot;days&quot;    ) ) %&gt;% 
+  ungroup() %&gt;%
+  na.omit() %&gt;% 
+  # plot data  
+ggplot(aes(x=date,y=roll_avg,group=name,col=name))+
+  geom_line(size=1,show.legend = FALSE)+
+  facet_wrap(.~fct_relevel(name,&quot;Parks&quot;) ,scales = &quot;free_y&quot;,ncol=2)+
+  scale_y_continuous(labels = scales::percent_format(), breaks =  seq(-1,1,0.25 ))+
+  scale_x_date( breaks = seq(as.Date(&quot;2020-02-15&quot;), as.Date(&quot;2021-01-04&quot;),by=&quot;4 week&quot; ) ,labels = scales::label_date_short() )+
+  scale_color_manual (values = colour_codes)+
+  geom_hline(yintercept=0,lty=2,size=1)+
+  geom_text(data = ann_text,aes(label=label),vjust=1.1,col=&quot;black&quot;,alpha=0.6,size=3)+
+  lockdown_1 +
+  lockdown_2 +
+  tier3+
+  tier4+
+  labs(title=&quot;The long terms trends point towards going back to pre-pandemic levels,\nbut lockdowns and restrictions keep this trend at bay&quot;,
+       subtitle = &quot;Seven day rolling average percent change from baseline in mobility during lockdowns&quot;,
+       caption = &quot;Source: Google COVID-19 Community Mobility Reports&quot;,
+       col=&quot;Location&quot;,
+       x=&quot;Day of Lockdown&quot;,
+       y=&quot;Average percent change (%)&quot;)+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>This graphs shows the mobility trends smoothed out using a seven day rolling average, which allows us to view the trends more generally. For example, the time spent at residential places reached a peak in terms of percent change, during the early part of the first lockdown, but declined steadily during Spring and Summer, before rising again in Autumn and early Winter. The second locked also forced more people to spend more time at home than usual.</p>
+<pre class="r"><code>all_mobility %&gt;% 
+  mutate( lockdown =  case_when(date &gt;= as.Date(&quot;2020-03-23&quot;) &amp;  date &lt;= as.Date(&quot;2020-05-10&quot;)   ~ &quot;1st Lockdown&quot;,
+                                date &gt;= as.Date(&quot;2020-11-05&quot;) &amp;  date &lt;= as.Date(&quot;2020-12-02&quot;)   ~ &quot;2nd Lockdown&quot;,
+                                TRUE ~ &quot;none&quot;)) %&gt;% 
+  filter(lockdown != &quot;none&quot;) %&gt;% 
+  group_by(name,lockdown) %&gt;% 
+  summarise( roll_avg = zoo::rollmean(value,7,align=&quot;right&quot;),.groups=&quot;keep&quot;) %&gt;% 
+  mutate(day = row_number()+6 ) %&gt;% 
+  ungroup() %&gt;% 
+  mutate( name = fct_reorder2( name,.x =lockdown,.y =roll_avg   )  ) %&gt;% 
+  ggplot(aes(x=day,y=roll_avg,group=name,col=name))+
+  geom_line(size=1)+
+  facet_wrap(.~lockdown,scales = &quot;free_x&quot;)+
+  scale_y_continuous(labels = scales::percent_format(), breaks =  seq(-1,1,0.25 ))+
+  scale_x_continuous(breaks = seq(0,56,7) )+
+  scale_color_manual (values = colour_codes)+
+  geom_hline(yintercept=0,lty=2,size=1)+
+  annotate(geom=&quot;text&quot;,label=&quot;Baseline&quot;,x= 15,y=0,alpha=0.6,vjust=-0.4)+
+  labs(title=&quot;For the duration of the lockdowns, with the exception of visits to the park,\nthere was no significant behaviour change&quot;,
+       subtitle = &quot;Seven day rolling average percent change from baseline in mobility during lockdowns&quot;,
+       caption = &quot;Source: Google COVID-19 Community Mobility Reports&quot;,
+       col=&quot;Location&quot;,
+       x=&quot;Day of Lockdown&quot;,
+       y=&quot;Average percent change (%)&quot;)+
+  theme_bw()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>The above plot shows the average percentage change over the previous week during the lockdowns. We see that largely speaking for all locations other than parks, the compliance rate was consistent throughout the lockdown.</p>
+</div>
+</div>
+<div id="mobility-change-for-london-boroughs" class="section level1">
+<h1>Mobility change for London boroughs</h1>
+<p>We saw how the mobility changed for the whole of London during the pandemic, but how did things change at the borough level?</p>
+<p>We will break down what is happening at the borough level. This will include looking at the City of London, which itself is not a borough of London, but will still be looked at, as it’s an important district in London.</p>
+<p>The following graphs will shows what is happening.</p>
+<pre class="r"><code>gb_london_boroughs_grid &lt;- gb_london_boroughs_grid %&gt;% 
+  mutate(name = str_replace_all(name,&quot;Westminster&quot;,&quot;City of Westminster&quot;) ) #Needed to replace for a join to work
+
+
+
+london_map &lt;- function(mobil,col,background_col){
+   
+  # Helper function to create facet maps of London boroughs
+  
+  london_mobility %&gt;% 
+    filter(sub_region_2 != &quot;All&quot;) %&gt;% 
+    pivot_longer(retail_and_recreation:residential) %&gt;% 
+    filter(name == mobil) %&gt;% 
+    mutate( value = (value)/100 ) %&gt;%
+    left_join(gb_london_boroughs_grid ,  by=c(&quot;sub_region_2&quot;=&quot;name&quot;)) %&gt;% 
+    ggplot(aes(x=date,y=value))+
+    geom_line(col=col)+
+    geom_hline(yintercept = 0,lty=2,alpha=0.8,size=1)+
+    lockdown_1 +
+    lockdown_2 +
+    tier3+
+    tier4+
+    scale_y_continuous(labels=scales::percent_format())+
+    labs(y=&quot;Percent change from baseline&quot;,
+         x=&quot;&quot;,
+         caption = &quot;Source: Google COVID-19 Community Mobility Reports&quot;)+
+    facet_geo(~code_ons,grid = &quot;gb_london_boroughs_grid&quot;,label=&quot;name&quot;, labeller = label_wrap_gen(width=20,multi_line = TRUE) )+
+    theme_bw()+
+    theme(plot.subtitle = ggtext::element_markdown(size=9),
+          plot.title = element_text(size=16,face=&quot;bold&quot;),
+          plot.title.position = &quot;plot&quot;,
+          plot.caption.position = &quot;plot&quot;,
+          panel.grid.minor  = element_blank(),
+          panel.grid.major = element_line(colour = &quot;grey80&quot;),
+          strip.text = element_text(size=8),
+          plot.background = element_rect(fill=background_col),
+          panel.background = element_rect(fill=background_col)
+    )
+  
+  
+}</code></pre>
+<pre class="r"><code>legend_plot &lt;- function(background_col){
+  
+  # Creates a legend/key plot for help better understand the viz
+  
+  ggplot(data.frame(text=&quot;London Borough&quot;))+
+    scale_y_continuous(labels=scales::percent_format())+
+    geom_hline(yintercept = 0,lty=2,alpha=0.8,size=1)+
+    lockdown_1 +
+    lockdown_2 +
+    tier3+
+    tier4+
+    annotate(geom=&quot;text&quot;,label=&quot;Borough\nbaseline&quot;,x= as.Date(&quot;2020-08-15&quot;),y=0,alpha=0.6,vjust=-.3,size=2.6)+
+    theme_bw()+
+    facet_wrap(~text )+
+    lockdown_ann(lockdown_1_start ,lockdown_1_end,text=TRUE,label=&quot;1st\nLock\n-down&quot;,vjust=1.1,size=2.5)+
+    lockdown_ann(lockdown_2_start ,lockdown_2_end,text=TRUE,label=&quot;2nd\nLock\n-down&quot;,vjust=1.1,size=2.5)+
+    lockdown_ann(tier_4_start ,tier_4_end,text=TRUE,label=&quot;Tier\n4&quot;,vjust=1.1,size=2.5)+
+    labs(title=&quot;Key:&quot;,x=&quot;Date&quot;,y=&quot;Percent change\nfrom baseline (%)&quot;)+
+    theme(axis.ticks = element_blank(),
+          axis.text = element_blank(),
+          axis.title = element_text(size=9),
+          plot.title = element_text(size=10),
+          plot.background = element_rect(fill=background_col,color = &quot;grey70&quot;,linetype = 2),
+          panel.background = element_rect(fill=background_col),
+          panel.grid = element_blank()
+    )
+}</code></pre>
+<pre class="r"><code>full_london_viz &lt;-  function(p,background_col){
+  
+  # Final function that puts the plots together
+  
+  grid.draw(p)
+  key_inset &lt;- viewport(x = 0.14, y = 0.81 ,    # (.88,.84)
+                        width = 0.2, height = 0.2)
+  pushViewport(key_inset)
+  grid.draw( ggplotGrob(legend_plot(background_col)))
+}</code></pre>
+<p>First we will start with parks</p>
+<pre class="r"><code>background_col &lt;- &quot;#E7F7ED&quot;
+
+p_park &lt;- london_map(&quot;parks&quot;,col=&quot;forestgreen&quot;,background_col = background_col)+
+  labs(title=&quot;Londoners in the outer boroughs visited their local parks more than those in central London&quot;,
+       subtitle=&quot;Plot showing percent change in visitation to &lt;span style = &#39;color: #007318&#39;&gt;**parks**&lt;/span&gt;
+         during 2020 from a baseline value taken as the median from&lt;br&gt; the equivalent day of week in the period 3rd Jan - 6th Feb 2020.&quot;)
+
+full_london_viz(p_park,background_col)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-17-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>We see some very interesting behaviour. The parks located in central London were very infrequently used when compared to pre-pandemic levels, while the parks in the outer boroughs saw more usage. The general numbers shouldn’t be looked into at much detail as better weather and public holidays can cause more people to go to the park and shouldn’t be seen as behaviour change brought on by the pandemic.</p>
+<p>It is still interesting to see the differences between the inner and outer boroughs, as the inner boroughs either decrease from the baseline or stayed at the same level as the baseline. This could also be due the fact that inner London is much more built up than outer London; meaning public spaces such as parks are much more available, the further out you go.</p>
+<p>There is also some missing data due to data quality and privacy issues.</p>
+<pre class="r"><code>background_col &lt;- &quot;#E6DFFB&quot;
+
+p_home &lt;- london_map(&quot;residential&quot;,col=&quot;#4317CD&quot;,background_col =background_col)+ 
+   labs(title=&quot;All Londoners followed the same trend of staying at home more&quot;,
+        subtitle=&quot;Plot showing percent change in duration of staying at &lt;span style = &#39;color: #4317CD&#39;&gt;**residential**&lt;/span&gt; places
+          during 2020 from a baseline value taken as the median from&lt;br&gt; the equivalent day of week in the period 3rd Jan - 6th Feb 2020. No data was collected for the City of London&quot;)
+
+full_london_viz(p_home,background_col)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-18-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>Broadly speaking London has a whole has followed the same trend of spending more time at home.</p>
+<p>The “spiky” behaviour is due to the day of week meaning there will be big differences for people spending time at home during weekdays and weekends.</p>
+<p>It’s also worth remembering that the baseline is a measure of the average spent, not number of people. And since there are only so many hours in the day, we should expect small changes, like on weekends where people aren’t going to work.</p>
+<pre class="r"><code>background_col &lt;- &quot;#E0EAFA&quot;
+
+p_rr &lt;- london_map(&quot;retail_and_recreation&quot;,col=&quot;#2266DD&quot;,background_col =background_col)+ 
+   labs(title=&quot;The number of Londoners going out for the shops or for fun in central London\n did not recover as much as the other boroughs&quot;,
+        subtitle=&quot;Plot showing percent change in visitation to &lt;span style = &#39;color: #2266DD&#39;&gt;**retail and recreation**&lt;/span&gt; places
+          during 2020 from a baseline value taken as the median from&lt;br&gt; the equivalent day of week in the period 3rd Jan - 6th Feb 2020.&quot;)
+
+full_london_viz(p_rr,background_col)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-19-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>For retail and recreation locations, we see a similar picture for the other locations, where the inner boroughs were deserted, and the outer ones saw more activity.</p>
+<p>Boroughs like the City of Westminster and the City of London, saw a huge decrease. Since the beginning of lockdown, the number of people at these locations did not even reach 1/2th of the pre-pandemic numbers.</p>
+<p>During the Summer, many boroughs saw a recovery to pre-pandemic levels, but this was short-lived. This rise may have been spurred by the “Eat Out to Help Out” scheme.</p>
+<pre class="r"><code>background_col &lt;- &quot;#E0F4EF&quot;
+
+p_gp &lt;- london_map(&quot;grocery_and_pharmacy&quot;,col=&quot;#42BDA1&quot;,background_col = background_col)+ 
+labs(title=&quot;Outer boroughs of London almost saw a return to normality in shopping habits,\n but inner London remains quiet&quot;,
+        subtitle=&quot;Plot showing percent change in visitation to &lt;span style = &#39;color: #42BDA1&#39;&gt;**grocery and pharmacy**&lt;/span&gt; places
+          during 2020 from a baseline value taken as the median from&lt;br&gt; the equivalent day of week in the period 3rd Jan - 6th Feb 2020&quot;)
+
+full_london_viz(p_gp,background_col)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-20-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>Visits to the supermarket and locations for food did not change that much. This should not surprising as people need to eat food to survive, so we should not expect any drastic changes.</p>
+<p>Before news of a lockdown was officially announced, there was a large increase in several boroughs - almost 50% - in the number of people doing the shopping. There were many instances of panic-buying reported across the media, items like pasta, rice, flour and toilet rolls were highly sought after.</p>
+<p>The general trend seems to be that shopping levels are returning to pre-pandemic numbers. Many places saw a spike around December, this is most likely due to the holiday season.</p>
+<p>While many boroughs followed the same trend, there is one one oddity; the borough of Camden has much lower levels of shopping than the other boroughs compared. During the Summer, it was just under a 50% decrease, while many of the other boroughs add a percent decrease of 25%.</p>
+<pre class="r"><code>background_col &lt;- &quot;#F8F2F1&quot;
+
+p_workplaces &lt;- london_map(&quot;workplaces&quot;,col=&quot;#A96256&quot;,background_col = background_col)+ 
+   labs(title=&quot;Number of people at work hasn&#39;t fully recovered&quot;,
+        subtitle=&quot;Plot showing percent change in visitation to &lt;span style = &#39;color: #A96256&#39;&gt;**workplaces**&lt;/span&gt;
+          during 2020 from a baseline value taken as the median from&lt;br&gt; the equivalent day of week in the period 3rd Jan - 6th Feb 2020.&quot;)
+
+full_london_viz(p_workplaces,background_col)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-21-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>London did not fully return to work. After the first lockdown, which saw around a 75% decrease from normal levels, there has been a steady increase in people returning to work. However, numbers plummeted again during the second lockdown and holiday season.</p>
+<p>The spikes are to be expected from the weekday/weekend effect discussed earlier.</p>
+<pre class="r"><code>background_col &lt;- &quot;#FEF6FB&quot;
+
+p_transport &lt;- london_map(&quot;transit_stations&quot;,col=&quot;#F10E8D&quot;,background_col = background_col)+ 
+   labs(title=&quot;Transport in central London does not see the same levels of recovery\n in usage as other boroughs&quot;,
+        subtitle=&quot;Plot showing percent change in visitation to &lt;span style = &#39;color: #F10E8D&#39;&gt;**transport**&lt;/span&gt; locations
+          during 2020 from a baseline value taken as the median from&lt;br&gt; the equivalent day of week in the period 3rd Jan - 6th Feb 2020.&quot;)
+
+full_london_viz(p_transport,background_col)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-22-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>As we have seen earlier, the number of people at transport locations has also dipped.</p>
+<p>It appears that, once again, the percent change did not recover as much in central London as it did anywhere else. Where central London only just reach over 50% of pre-pandemic levels, other boroughs saw usage recover to nearly 75% of pre-pandemic levels.</p>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>That ends a look into the data about mobility during the pandemic in London.</p>
+<p>For transport services:</p>
+<ul>
+<li><p>The tube has seen a drop in passenger numbers, with numbers not reaching 50% of the same time last year</p></li>
+<li><p>Bus services also saw a drop but nowhere near as severe as the tube’s</p></li>
+<li><p>Lockdowns had a noticeable impact, by causing a further drop from the baseline.</p></li>
+</ul>
+<p>For mobility trends:</p>
+<ul>
+<li><p>People are spending more time at home, but this has been decreasing as the year went on</p></li>
+<li><p>Locations such as workplaces, groceries, pharmacies saw a dramatic reduction from the baseline during the year</p></li>
+<li><p>Parks saw some positive increase from the baseline, but this was due to better weather during the Summer</p></li>
+<li><p>The second lockdown has a closer return to pre-pandemic levels than the first</p></li>
+<li><p>The inner boroughs of London typically saw lower levels of mobility from the baseline at various locations, than compared to the outer boroughs</p></li>
+</ul>
+<p>I will probably end up making another post about the 3rd lockdown and seeing if there were any changes from the first two.</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://www.gov.uk/government/publications/transport-use-during-the-coronavirus-covid-19-pandemic/covid-19-transport-data-methodology-note#transport-for-london-tfl-tube-and-bus-routes">COVID-19 transport data: methodology note</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://support.google.com/covid19-mobility/answer/9825414?hl=en&amp;ref_topic=9822927">Google COVID-19 Community Mobility Reports: Understand the data</a><a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
