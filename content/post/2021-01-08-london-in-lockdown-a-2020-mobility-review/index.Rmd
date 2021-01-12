@@ -130,7 +130,7 @@ transport %>%
   guides(color = guide_legend(override.aes = list(size = 3)))
 ```
 
-We see the usage of the transport services as a percent change of the previous year. To interpret this, as an example, on the 19th August 2020, the percent change for the tube was -75%, meaning that day saw only 25% of the number of people using the tube from 2019 in 2020 on that specific day.
+We see the usage of the transport services as a percent change of the previous year. To interpret this, as an example, on the 19th July 2020, the percent change for the tube was -75%, meaning that day saw only 25% of the number of people using the tube from 2019 in 2020 on that specific day.
 
 * From the trend of the graph TfL services saw a drop in passenger numbers using the tube or buses. Even before the first lockdown, it is evident that more and more people were not using those services.
 
