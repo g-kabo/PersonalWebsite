@@ -1,0 +1,888 @@
+---
+title: Simulating Monopoly - Part 1
+author: ''
+date: '2021-01-25'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+Over the next two blog posts, I will be looking at everyone's favourite\* boardgame **Monopoly!**
+
+-   The first part will be about creating and building a simulation of the game
+
+-   The second will be looking at the properties themselves and ask questions like: What the best properties to buy are? Which property gives the best ROI? which sets should you own? what combination of houses and hotels are best? Does the number of players have an affect? and many more.
+
+The game is a classic pastime for many people - long drawn-out games, getting upset at losing money, and getting into fights with friends and family. Despite not many people liking it, it's one of the most played and famous board games out there.
+
+If you are unfamiliar the game, you can click this [link](https://en.wikipedia.org/wiki/Monopoly_(game)#Rules) to the get the Wikipedia entry of the game and it's rules. From now on, I will assume that you are familiar with the rules.
+
+# Set-up
+
+Here I load tidyverse for graphs and data manipulation, and a few ggplot helper functions
+
+```{r,message=FALSE}
+library(tidyverse)
+library(patchwork)
+library(gganimate)
+
+options(kableExtra.html.bsTable = TRUE)
+```
+
+```{r}
+monopoly_props <-  readxl::read_xlsx(here::here("static/data/monpoly_properties.xlsx"))
+
+board_space = c(0:39)
+names(board_space) <- monopoly_props$Name
+
+color_codes <-  c("None"="grey40",
+                  "Brown" = "#946C6B",
+                  "Station"="#AEC7D8",#   "#E3E4E5",
+                  "Light Blue"= "#79D7D8",
+                  "Pink" ="#ED63DF",# "#E51AD0",
+                  "Utilities" = "#4CB45C",# "#7FCA8B",
+                  "Orange" = "#E4901B",
+                  "Red"="#E71A18",
+                  "Yellow" = "#FFDC00",
+                  "Green" = "#097F09",
+                  "Dark Blue" = "#1F4AE0"
+                  )
+```
+
+```{r}
+# ggplot helper function
+gg_monopoly <- function(n_games,n_rolls,add_base=FALSE) {
+  
+  sim_result <-  simulate_monopoly(n_games,n_rolls)
+  
+  p <- monopoly_props %>% 
+    bind_cols(pct = sim_result ) %>% 
+    ggplot(aes(y= reorder(Name,-Space) ,x=pct,fill=Color ))+
+    geom_col(show.legend = FALSE)+
+    scale_fill_manual(values = color_codes)+
+    scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1) )+
+    labs(subtitle = glue::glue("Simulation of {format(n_rolls)} dice rolls over {n_games} games"  ),
+         x="Chance of landing per dice roll (%)",y="")+
+    theme_classic()+
+    theme(panel.grid.major.x  = element_line(),
+          panel.grid.minor.x  = element_line(),
+          axis.line.x = element_line(),
+          axis.ticks =element_blank()) 
+  
+  if (add_base == TRUE){
+    p <-  p + geom_vline(xintercept = 1/40,lty=2,col="black")
+  }
+  return(p)
+}
+
+gg_monopoly_short <- function(n_games,n_rolls) {
+  
+  sim_result <-  simulate_monopoly(n_games,n_rolls)
+  
+  p <- monopoly_props %>% 
+    bind_cols(pct = sim_result ) %>% 
+    ggplot(aes(y= reorder(Name,-Space) ,x=pct,fill=Color ))+
+    geom_col(show.legend = FALSE)+
+    scale_fill_manual(values = color_codes)+
+    scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1) )+
+    labs(x="Times landed on (%)",y="")+
+    ggtitle(label=paste("Simulating",n_rolls,"rolls over",n_games,"games" ))+
+    theme_classic()+
+    theme(panel.grid.major.x  = element_line(),
+          panel.grid.minor.x  = element_line(),
+          axis.line.x = element_line(),
+          axis.ticks =element_blank(),
+          axis.text.y = element_text(size=7),
+    ) 
+  return(p)
+}
+```
+
+Here is playing board:
+
+```{r}
+board_space
+```
+
+# Dice Function
+
+First thing to do in a game of monopoly is to roll the dice and move according to the sum of the top faces.
+
+```{r}
+dice_rolls <-  function(){
+  return(sample(1:6,2,replace = TRUE))
+}
+
+set.seed(414)
+roll <-  dice_rolls()
+print(paste0("Rolled a ",roll[1]," and ",roll[2],". Their sum is ", roll[1]+roll[2] ))
+```
+
+# Simulating going around the board
+
+Now we create a simple simulation of going around a board
+
+```{r}
+simulate_monopoly <- function(n_games=1000,n_rolls=1000){
+  
+  all_counts <- rep(0,40)
+  for (g in 1:n_games){ 
+    pos <-  0
+    counts <-  rep(0,40)
+    for (i in 1:n_rolls){
+      
+      # roll the dice
+      roll <-  dice_rolls()  
+      
+      # move around the board
+      pos <-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      counts[pos+1] <-  counts[pos+1] + 1 # counts[] does not start from 0, hence need +1
+    }
+    all_counts <- all_counts + counts
+  }
+  all_counts <-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}
+```
+
+## Simulating dice rolls
+
+We can see how the distribution changes as we increase the number of dice rolls in a game.
+
+```{r, fig.width=10, fig.height=8}
+set.seed(414) 
+
+( gg_monopoly_short(1,1) + gg_monopoly_short(1,10)  ) / (  gg_monopoly_short(1,50) + gg_monopoly_short(1,100)    )
+```
+
+Simulating more rolls allows more squares to be landed on.
+
+We see the chance of landing on a particular square converges to a value as we use larger and larger dice rolls.
+
+```{r}
+set.seed(414)
+game_1 <-  simulate_monopoly(1,1000)
+game_2 <-  simulate_monopoly(1,5000)
+game_3 <-  simulate_monopoly(1,10000)
+game_4 <-  simulate_monopoly(1,50000)
+game_5 <-  simulate_monopoly(1,100000)
+
+p <- monopoly_props %>% bind_cols( "1,000"=game_1,
+                                   "5,000"=game_2 , 
+                                   "10,000"=game_3  ,
+                                   "50,000"=game_4,
+                                   "100,000"=game_5) %>% 
+  pivot_longer("1,000":"100,000") %>% 
+  mutate (  name = factor(name, levels=c("1,000",
+                                         "5,000", 
+                                         "10,000",
+                                         "50,000",
+                                         "100,000")  
+  ) 
+  ) %>% 
+  #ggplot(aes(x=value,y=Name,fill=Color)) +
+  ggplot(aes(x=value,y=reorder(Name,-Space),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,1) )+
+  #scale_y_continuous(breaks = 1:40, labels = unique(monopoly_props$Name)) +
+  labs(
+    #    subtitle = glue::glue("Simulation of {format(n_rolls)} dice rolls over {n_games} games"  ),
+    x="Chance of landing per dice roll (%)",y="")+
+  geom_vline(xintercept = (1/40),lty=2)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim <- p+transition_states(name)+ease_aes('sine-in-out')+
+  ggtitle("Simulation of {closest_state} dice rolls over 1 game")
+
+animate(anim,fps=30)
+```
+
+After 100,000 dice rolls we reach a the chance of landing on a square as 2.5%.
+
+Now, if we were to increase the number of games played, we can get a view of the many different paths a player can take.
+
+```{r, fig.width=10, fig.height=8}
+set.seed(414) 
+
+( gg_monopoly_short(1,5) + gg_monopoly_short(10,5)  ) / (  gg_monopoly_short(50,5) + gg_monopoly_short(100,5)    )
+```
+
+## Simulating number of games
+
+We can also simulate a large number of games. The next animation shows the chance of landing on a square for each roll in the first 10 rolls in 10,000 games.
+
+```{r}
+
+set.seed(414)
+games <-  rep(NA,10)
+for (i in 1:10){
+  temp  <-  simulate_monopoly(10000,i)
+  nam <- paste0("game_", i)
+  assign(nam, temp)
+}
+
+df <- monopoly_props %>% bind_cols( "1"=game_1,"2"=game_2 , "3"=game_3  ,"4"=game_4,
+                                    "5"=game_5,"6"=game_6,"7"=game_7 , "8"=game_8  ,
+                                    "9"=game_9,"10"=game_10) %>% 
+  pivot_longer("1":"10") %>% 
+  mutate (  name = as.numeric(name) )  
+
+p <- df %>% 
+  ggplot(aes(x=value,y=reorder(Name,-Space),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,5) )+
+  labs(x="Chance of landing per dice roll (%)",y="")+
+  geom_vline(xintercept = (1/40),lty=2)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim <- p+transition_states(name)+ ease_aes('sine-in-out')+
+  ggtitle("Simulation of the first {closest_state} dice rolls over 10,000 games",
+          subtitle = "Most likely place to land: { df %>%  filter(name==closest_state) %>% slice_max(order_by = value) %>% select(Name) %>% pull() }")
+
+animate(anim,fps=30,nframes = 300)
+
+```
+
+After one dice roll, the probabilities of landing on a square are normally distributed with the mean being seven places away from go - the chance square. This is because rolling a seven is the most likeliest outcome.
+
+After more dice rolls the probabilities start to spread themselves out across the board. This shows the many paths a player can take after just several rolls.
+
+## Simulating large number of rolls and games
+
+If we were to simulate a large number of rolls over a large number of games, we can get the long term behaviour as shown below.
+
+Now we see that basically speaking, the chances of landing on any square in the long run is equal for all spaces. This should not be too surprising as there is a 1-in-40 chance of landing on any given square.
+
+```{r, message=FALSE}
+set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+    scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 0.1 ),breaks = (1/100)*seq(0,100,0.5) )+
+  labs(title="Long term behaviour of going around the board")
+```
+
+Note the dashed line at `2.5%`, this is the chance of randomly landing on a space on the board, which is $\frac{1}{40}$.
+
+# Going to Jail space
+
+Next we add the condition of going to jail if one lands on the "Go to jail" space.
+
+```{r}
+simulate_monopoly <- function(n_games=1000,n_rolls=1000){
+  
+  all_counts <- rep(0,40)
+  
+  for (g in 1:n_games){ 
+    pos <-  0
+    counts <-  rep(0,40)
+    for (i in 1:n_rolls){
+      roll <-  dice_rolls()  
+      pos <-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      # If land on go to jail - go to jail
+      if (pos == 30){
+        pos = 10 
+      }
+      counts[pos+1] <-  counts[pos+1] + 1 
+    }
+    all_counts <- all_counts + counts
+  }
+  all_counts <-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}
+```
+
+```{r}
+set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+  labs(title="Adding go to jail")
+```
+
+On viewing the graph, there is a noticeable increase in the chance of ending a turn in jail. The spaces ahead of jail also see a slight increase, while all the other places see a dip
+
+# Adding doubles rule
+
+Next, we add the doubles rule of re-rolling if a player rolls a double, but if a player rolls 3 doubles in a row, then they get sent to jail.
+
+```{r}
+simulate_monopoly <- function(n_games=1000,n_rolls=1000){
+  
+  all_counts <- rep(0,40)
+  
+  for (g in 1:n_games){ 
+    pos <-  0
+    counts <-  rep(0,40)
+    n_doubles <-  0
+    
+    for (i in 1:n_rolls){
+      roll <-  dice_rolls()  
+      
+      # if double then n_double += 1
+      # else n_doubles = 0
+      if  (roll[1] == roll[2] ) { n_doubles <- n_doubles + 1}
+      else {n_doubles = 0}
+      
+      pos <-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      # If landed on Go-to-Jail or n_doubles == 3 
+      if (pos == 30 || n_doubles == 3 ){  
+        pos = 10 # go jail & reset n_double
+        n_doubles = 0
+      }
+      
+      counts[pos+1] <-  counts[pos+1] + 1 
+    }
+    all_counts <- all_counts + counts
+  }
+  all_counts <-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}
+```
+
+```{r}
+set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+  labs(title="Adding doubles rule")
+```
+
+By adding the doubles rule, the chances of going to jail per dice roll increase from under 5% to around 5.5%.
+
+# Adding chance and community chest cards
+
+Now we add the affects of drawing cards from the chance or community chest places
+
+## Chance cards
+
+Here I will use the assumption from this [site](https://monopoly.fandom.com/wiki/Chance) about the chance cards distribution.
+
+Namely, of the 16 chance cards, there are 10 that move a player, and two of those are going to the nearest station
+
+```{r}
+# Function for drawing chance cards
+
+draw_chance_card <- function(pos){
+  
+  jailed <- FALSE
+  cards <- c("Kings","Jail","Backwards","Trafalgar",
+             "Pall","Mayfair","Go","Utility",
+             "Station","Station", "None","None",
+             "None","None","None","None"
+  )
+  drawn <-  sample(cards,1)
+  
+  if (drawn =="None"){pos=pos} # If none then do nothing
+  else if (drawn == "Kings"){pos=5 } 
+  else if (drawn == "Jail"){pos=10 ;jailed=TRUE } 
+  else if (drawn == "Backwards"){pos= pos-3 }
+  else if (drawn ==  "Trafalgar") {pos = 24}
+  else if (drawn ==  "Pall") {pos = 11}
+  else if (drawn == "Mayfair") {pos=39}
+  else if (drawn == "Go"){pos=0}
+  else if (drawn == "Utility"){ # Go to nearest utility
+    while (!pos %in% c(12,28))
+    {pos = ( pos + 1 ) %% 40}
+  }
+  else if(drawn == "Station"){ # Go to nearest station
+    while (!pos %in% c(5,15,25,35) )
+    {pos = ( pos + 1 ) %% 40}
+  }
+  
+  return( list(pos,jailed) )
+}
+```
+
+## Community Chest
+
+Likewise with chance cards, I will use the assumption from the same [site](https://monopoly.fandom.com/wiki/Community_Chest) about the community chest card distribution.
+
+Namely, of the cards, only two move a player.
+
+```{r}
+draw_chest_card <- function(pos){
+  
+  jailed <-  FALSE
+  cards <- c("Go","Jail","None","None",
+             "None","None","None","None",
+             "None","None","None","None",
+             "None","None","None","None"
+  )
+  drawn <-  sample(cards,1)
+  
+  if (drawn == "None"){pos = pos} # If none then do nothing
+  else if (drawn == "Jail"){pos=10; jailed=TRUE} 
+  else if (drawn == "Go"){pos=0}
+  
+  return(list(pos,jailed) )
+}
+```
+
+There may be slight differences depending on region or edition. Any differences in the cards will result in changes in the short-term and long-term behaviour of going around a board.
+
+```{r}
+simulate_monopoly <- function(n_games=1000,n_rolls=1000){
+  all_counts <- rep(0,40)
+  for (g in 1:n_games){ 
+    pos <-  0
+    jailed <- FALSE
+    counts <-  rep(0,40)
+    n_doubles <-  0
+    
+    
+    for (i in 1:n_rolls){
+      roll <-  dice_rolls()  
+      
+      if  (roll[1] == roll[2] ) { n_doubles <- n_doubles + 1}
+      else {n_doubles = 0}
+      
+      pos <-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      if (pos == 30 || n_doubles == 3  ){  
+        pos = 10 
+        n_doubles = 0
+      }
+ 
+      #### Card actions
+      ## land on chance
+      if (pos %in% c(7,22,36) ){
+        card_res = draw_chance_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      ## land on community chest
+      else if (pos %in% c(2,17,33)  ){
+        card_res = draw_chest_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      
+      
+      counts[pos+1] <-  counts[pos+1] + 1 
+    }
+    all_counts <- all_counts + counts
+  }
+  all_counts <-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}
+```
+
+As seen previously, we can simulate the first 10 rolls over many games.
+
+```{r}
+set.seed(414)
+games <-  rep(NA,10)
+for (i in 1:10){
+  temp  <-  simulate_monopoly(10000,i)
+  nam <- paste0("game_", i)
+  assign(nam, temp)
+}
+
+df <- monopoly_props %>% bind_cols( "1"=game_1,"2"=game_2 , "3"=game_3  ,"4"=game_4,"5"=game_5,
+                                    "6"=game_6,"7"=game_7 , "8"=game_8  ,"9"=game_9,"10"=game_10) %>% 
+  pivot_longer("1":"10") %>% 
+  mutate (  name = as.numeric(name) ) 
+
+p <- df %>% 
+  ggplot(aes(x=value,y=reorder(Name,-Space),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,5) )+
+  labs(x="Chance of ending on square per dice roll (%)",y="")+
+  geom_vline(xintercept = (1/40),lty=2)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim <- p+transition_states(name)+ #ease_aes('sine-in-out')+
+  ggtitle("Simulation of the first {closest_state} dice rolls over 10,000 games",
+          subtitle = "Most likely square to end on: {cities <-  df %>%  filter(name==closest_state) %>% slice_max(order_by = value,n=1) %>% select(Name) %>% pull() }")
+
+animate(anim,fps=30,nframes = 300)
+```
+
+Notice that after only a few rolls, landing in jail becomes the likeliest place to end up on after a given dice roll.
+
+The interpretation for the probabilities is now slightly more nuanced. Instead of referring the chance of landing per dice rolls, it now refers to ***the chance of ending up on a square after each dice roll per dice roll***.
+
+The difference is due to the changes induced by card actions or going to jail by gaining doubles. The simulation only records the final position after a dice roll.
+
+```{r}
+set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+  labs(title="Adding chance cards and community chest actions",
+       x="Chance of ending on square per dice roll (%)",y="")
+```
+
+Going to jail now has about a 6% chance of happening per turn. The addition of chance cards has also altered the distribution of landing on any space, for example Trafalgar Square has the highest chance of being landed for any property.
+
+The stations also a receive a large boost.
+
+```{r}
+n_games <-  1e3
+n_rolls <-  1e3
+set.seed(414)
+sim_res <-  simulate_monopoly(n_games,n_rolls)
+
+monopoly_props %>% 
+  bind_cols(pct =  sim_res) %>% 
+  filter(Name != "Go to Jail" ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,pct),fill=Color  ))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,1) )+
+  labs(title = "Trafalgar Square, Vine Street, and most stations are the properties\nthat have the highest chance of being landed on",
+       subtitle = glue::glue("Simulation of {format(n_rolls)} dice rolls over {n_games} games"  ),
+       x="Chance of ending on square per dice roll (%)",y="")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+```
+
+The most likeliest purchasable properties are Trafalgar Square, followed by Vine Street, and several stations.
+
+The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.
+
+# Jail strategy
+
+It is apparent that there are two strategies to consider when in jail.
+
+-   The first is leaving jail as soon as possible
+
+-   The second is staying in jail as long as possible
+
+They come about because initially, when the board is empty and there are many properties up for grabs, a player would want to land on those squares are purchase that property, and they would not be able to do that when in jail
+
+But when there are many properties owned by other places and some of those properties has houses or hotels placed on them, it can be very damaging to a players cash pile and cause a ruin. Thus staying in jail to collect rent from your opponents while also buying time to avoid landing on potential game-ending squares.
+
+We will adjust the simulator to take into account both strategies.
+
+```{r}
+simulate_monopoly <- function(n_games = 1000, n_rolls = 1000,jail_stay = TRUE){
+  all_counts = rep(0,40)
+  for (g in 1:n_games){
+    pos = 0
+    n_doubles = 0
+    jailed = FALSE
+    jail_turns = 0
+    counts = rep(0,40)
+    for (i in 1:n_rolls){
+      
+      roll <-  dice_rolls()
+      
+      ##### stay in jail strategy
+      if (jail_stay  ){
+        # Checks for doubles or jail
+        if  (  (roll[1] == roll[2]) & !jailed) # if doubles and not in jail
+        { n_doubles = n_doubles + 1
+        #   print("NOT IN jail - doubles")
+        }        
+        else if ( (roll[1] != roll[2]) & jailed & jail_turns !=3) # if not doubles and in jail
+        {  jail_turns = jail_turns + 1
+        roll = c(0,0)
+        #  print("IN jail - NO doubles")
+        #  print(paste("In jail for:",jail_turns))
+        } 
+        else if ( ( (roll[1] == roll[2]) & jailed) | jail_turns == 3  )  # if doubles and in jail, or spent 3 turns in jail
+        {n_doubles = 0
+        jail_turns = 0
+        jailed = FALSE
+        #  print("IN jail - DOUBLES") 
+        }
+        else {n_doubles = 0
+        # print("NOT IN jail - NO doubles")
+        }                # if not doubles and not in jail
+      }
+      
+      #### leave jail strategy
+      else if (!jail_stay){
+        if  (roll[1] == roll[2] ) { n_doubles = n_doubles + 1}
+        else {n_doubles = 0}
+      }
+      
+      # move to new position
+      pos <-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      # If landed on Go-to-Jail or got 3 doubles
+      if (pos == 30 || n_doubles == 3 ){  # go jail and reset doubles  
+        pos = 10 
+        n_doubles  = 0
+        jailed = TRUE
+      }
+      
+      #### Card actions
+      ## land on chance
+      if (pos %in% c(7,22,36) ){
+        card_res = draw_chance_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      ## land on community chest
+      else if (pos %in% c(2,17,33)  ){
+        card_res = draw_chest_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      
+      
+      counts[pos+1] <-  counts[pos+1] + 1
+    }
+    all_counts <- all_counts + counts
+    
+  }
+  all_counts <-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}
+
+```
+
+The simulation now takes into the two strategies - leaving jail asap, or staying as long as possible.
+
+We can see how the strategies result in different probabilities for ending on a particular square in the long term.
+
+```{r}
+n_games <-  1e2 ; n_rolls <-  1e3
+set.seed(414)
+game_1 <- simulate_monopoly(n_games, n_rolls ,jail_stay = FALSE)
+set.seed(414)
+game_2 <- simulate_monopoly(n_games, n_rolls , jail_stay = TRUE)
+```
+
+```{r}
+p <- monopoly_props %>% 
+  bind_cols(Leave_jail = game_1, Stay_jail = game_2   ) %>% 
+  rename( "Leave jail" = Leave_jail,
+          "Stay in jail" = Stay_jail) %>% 
+  pivot_longer(cols=c("Leave jail","Stay in jail")) %>% 
+  ggplot(aes(x=value,y=reorder(Name,-Space ),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,2) )+
+  labs(
+    subtitle = glue::glue("Simulation of {format(n_rolls)} dice rolls over {n_games} games"  ),
+    x="Chance of ending on square per dice roll (%)",y="")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim <-  p + transition_states(name) + ease_aes('sine-in-out') +
+  ggtitle('Strategy: {closest_state}')
+
+animate(anim,fps=30)
+```
+
+Up to now all the simulations took the jail strategy as leaving instantly, but when we compare the long term probabilities, we see that the chance of ending up in jail is even more dominant than the previous strategy of leaving.
+
+This large increase for ending up in jail suppresses the probabilities for ending a dice roll on other squares.
+
+# A more realistic scenario
+
+The problem with these simulations is that it assumes that games of monopoly will take a sufficiently long enough time to reach the steady states discussed previously.
+
+The average number of dice rolls per player in a game of monopoly is about 30 dice rolls[^1]. So using this fact, I will simulate a game with 30 dice rolls. Though there have been estimates ranging from 30-45 rolls.
+
+[^1]: This figure came from the youtube video [The Mathematics of Winning Monopoly](https://www.youtube.com/watch?v=ubQXz5RBBtU) from the\
+    Stand-up Maths channel and a [blog](https://blog.ed.ted.com/2017/12/01/heres-how-to-win-at-monopoly-according-to-math-experts/#:~:text=Since%20the%20average%20game%20of,money%20into%20longer%2Dterm%20investments) post by the authors of the book mentioned in said video
+
+Since supposedly most games end after 30 dice rolls, then using this number in our simulation should give us accurate results that correspond to what happens in a real game. However, in the event that a game goes on for longer than 30 dice rolls per player, I will also long at the long term limit of dice rolls and also study those scenarios.
+
+So overall I will look at four possible situations; the chance of landing on a square after:
+
+-   many dice rolls, leaving jail
+
+-   many dice rolls, stay in jail
+
+-   30 dice rolls, leaving jail
+
+-   30 dices rolls, stay in jail
+
+```{r}
+set.seed(414)
+leave_long <- simulate_monopoly(n_games = 1e4,n_rolls =1e3 ,jail_stay = FALSE)
+set.seed(414)
+stay_long<- simulate_monopoly(n_games = 1e4,n_rolls =1e3 ,jail_stay = TRUE)
+
+set.seed(414)
+leave_30 <-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = FALSE)
+set.seed(414)
+stay_30 <-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = TRUE)
+```
+
+We can view the relative percentage difference between the two dice roll situations. This asks the question, what squares are more likely to be landed on than others for the different scenarios?
+
+First up we look at the difference of leaving jail after 30 dice rolls to leaving jail after many rolls.
+
+```{r, warning=FALSE}
+monopoly_props %>% 
+  mutate ( pct =  (leave_30 -leave_long)/leave_long ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02))+
+  labs(title = "The chances of ending on a light blue, pink or orange are higher\nafter 30 dice rolls than many dice rolls",
+       subtitle = "Relative percentage difference of ending on a square \n from 30 dice rolls to many dice rolls for leaving jail",
+       x="Relative percentage difference (%)",y="")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+```
+
+The above graph shows that when using simulating for 30 dice rolls instead of many, there is an big increase in squares that are in the first 5-20 squares than in all the other squares. In particular, the light blue and pinks see a very large percentage increase in the chances of landing on that square.
+
+Likewise we can see the difference for the stay in jail strategy.
+
+```{r, warning=FALSE}
+monopoly_props %>% 
+  mutate ( pct =  (stay_30 -stay_long)/stay_long ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02))+
+  labs(title = "The chances of ending on a light blue, pink or orange are higher\nafter 30 dice rolls than many dice rolls",
+       subtitle = "Relative percentage difference of ending on a square \n from 30 dice rolls to many dice rolls for staying in jail",
+       x="Relative percentage difference (%)",y="")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+```
+
+We see a similar situation to the leaving jail scenario, however, the big difference is that the simulation results suggest that there is a 4% decrease in the change of staying in after 30 dice rolls than going to jail after many dice rolls.
+
+# Graph of results
+
+Here are the graphs for the various results. First for many dice rolls
+
+```{r, fig.height=7, fig.width=10}
+p1 <-  monopoly_props %>% 
+  mutate ( pct =  leave_long ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),"%"),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.08) )+
+  labs(title = "Leave jail",y="",
+              x="Chance of ending on square per dice roll (%)")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p2 <- monopoly_props %>% 
+  mutate ( pct =  stay_long ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),"%"),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.15) )+
+  labs(title = "Stay in Jail",y="",
+              x="Chance of ending on square per dice roll (%)")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p1 + p2 + patchwork::plot_annotation(title = "Chance of ending on a square for many dice rolls",subtitle ="Simulation of 1,000 dice rolls over 10,000 games" )
+
+```
+
+The second is the scenario after 30 dice rolls.
+
+```{r, fig.height=7, fig.width=10}
+p1 <-  monopoly_props %>% 
+  mutate ( pct =  leave_30 ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),"%"),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.08) )+
+  labs(title = "Leave jail",y="",
+              x="Chance of ending on square per dice roll (%)")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p2 <- monopoly_props %>% 
+  mutate ( pct =  stay_30 ) %>% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),"%"),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.15) )+
+  labs(title = "Stay in Jail",y="",
+              x="Chance of ending on square per dice roll (%)")+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p1 + p2 + patchwork::plot_annotation(title = "Chance of ending on a square after 30 dice rolls",subtitle ="Simulation of 30 dice rolls over 100,000 games" )
+```
+
+## Table of simulation results
+
+Finally, before we finish we can view a table of results for the probabilities of landing on a particular square.
+
+-   For many dice rolls, `n_games = 10^4` and `n_rolls = 10^3`
+
+-   For 30 dice rolls, `n_games = 10^5` and `n_rolls = 30`
+
+```{r}
+monopoly_props %>% 
+  select(Space,Color,Name) %>% 
+  mutate( "long_leave" = leave_long,
+          "long_stay" = stay_long,
+          "30_leave"  =leave_30,
+          "30_stay" = stay_30) %>%
+  mutate( across( "long_leave":"30_stay"   , ~ scales::percent(.x,accuracy = 0.01)  )) %>% 
+  kableExtra::kable(col.names = c("Space","Group","Name","Leave Jail","Stay Jail","Leave Jail","Stay Jail"),
+                    align = "clrcccc") %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped","condensed"),full_width = F) %>% 
+  kableExtra::add_header_above(c(" " = 3, "Many rolls" = 2, "30 rolls" = 2)  ) 
+```
+
+# Conclusion
+
+We have seen how to build a simulator from a basic idea of a player going round a board to then introducing more and more of the game's mechanics to add further complexity and similarity to a real world game of monopoly. Some of the code for the simulator was inspired by Matt Parker's Monopoly code[^2], but that was built in Python, while this is in R.
+
+[^2]: [Link](https://www.dropbox.com/s/f5xndyafuj2cmpn/monopoly-v1.py?dl=0) to the code.
+
+Overall, we see that ending up in jail is the most likely space to end a dice roll on. The exact probability depends on the strategy and number of dice rolls played.
+
+The most likeliest purchasable properties to end a dice roll on are: Trafalgar Square, Vine Street, and several stations.
+
+The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.
+
+## Next up
+
+In the next blogpost, I will look at the fun part! In particular I will look at the properties and deciding which are the best based on a number of factors like which properties give the best ROI? which can produce the fastest returns? which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?
+
+All that coming up!
+
+```{r}
+sessionInfo()
+```

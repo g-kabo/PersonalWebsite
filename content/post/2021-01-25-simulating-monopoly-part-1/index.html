@@ -1,0 +1,1803 @@
+---
+title: Simulating Monopoly - Part 1
+author: ''
+date: '2021-01-25'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+<script src="index_files/header-attrs/header-attrs.js"></script>
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+<script src="index_files/kePrint/kePrint.js"></script>
+<link href="index_files/lightable/lightable.css" rel="stylesheet" />
+<link href="index_files/bsTable/bootstrapTable.min.css" rel="stylesheet" />
+<script src="index_files/bsTable/bootstrapTable.js"></script>
+
+
+<p>Over the next two blog posts, I will be looking at everyone’s favourite* boardgame <strong>Monopoly!</strong></p>
+<ul>
+<li><p>The first part will be about creating and building a simulation of the game</p></li>
+<li><p>The second will be looking at the properties themselves and ask questions like: What the best properties to buy are? Which property gives the best ROI? which sets should you own? what combination of houses and hotels are best? Does the number of players have an affect? and many more.</p></li>
+</ul>
+<p>The game is a classic pastime for many people - long drawn-out games, getting upset at losing money, and getting into fights with friends and family. Despite not many people liking it, it’s one of the most played and famous board games out there.</p>
+<p>If you are unfamiliar the game, you can click this <a href="https://en.wikipedia.org/wiki/Monopoly_(game)#Rules">link</a> to the get the Wikipedia entry of the game and it’s rules. From now on, I will assume that you are familiar with the rules.</p>
+<div id="set-up" class="section level1">
+<h1>Set-up</h1>
+<p>Here I load tidyverse for graphs and data manipulation, and a few ggplot helper functions</p>
+<pre class="r"><code>library(tidyverse)
+library(patchwork)
+library(gganimate)
+
+options(kableExtra.html.bsTable = TRUE)</code></pre>
+<pre class="r"><code>monopoly_props &lt;-  readxl::read_xlsx(here::here(&quot;static/data/monpoly_properties.xlsx&quot;))
+
+board_space = c(0:39)
+names(board_space) &lt;- monopoly_props$Name
+
+color_codes &lt;-  c(&quot;None&quot;=&quot;grey40&quot;,
+                  &quot;Brown&quot; = &quot;#946C6B&quot;,
+                  &quot;Station&quot;=&quot;#AEC7D8&quot;,#   &quot;#E3E4E5&quot;,
+                  &quot;Light Blue&quot;= &quot;#79D7D8&quot;,
+                  &quot;Pink&quot; =&quot;#ED63DF&quot;,# &quot;#E51AD0&quot;,
+                  &quot;Utilities&quot; = &quot;#4CB45C&quot;,# &quot;#7FCA8B&quot;,
+                  &quot;Orange&quot; = &quot;#E4901B&quot;,
+                  &quot;Red&quot;=&quot;#E71A18&quot;,
+                  &quot;Yellow&quot; = &quot;#FFDC00&quot;,
+                  &quot;Green&quot; = &quot;#097F09&quot;,
+                  &quot;Dark Blue&quot; = &quot;#1F4AE0&quot;
+                  )</code></pre>
+<pre class="r"><code># ggplot helper function
+gg_monopoly &lt;- function(n_games,n_rolls,add_base=FALSE) {
+  
+  sim_result &lt;-  simulate_monopoly(n_games,n_rolls)
+  
+  p &lt;- monopoly_props %&gt;% 
+    bind_cols(pct = sim_result ) %&gt;% 
+    ggplot(aes(y= reorder(Name,-Space) ,x=pct,fill=Color ))+
+    geom_col(show.legend = FALSE)+
+    scale_fill_manual(values = color_codes)+
+    scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1) )+
+    labs(subtitle = glue::glue(&quot;Simulation of {format(n_rolls)} dice rolls over {n_games} games&quot;  ),
+         x=&quot;Chance of landing per dice roll (%)&quot;,y=&quot;&quot;)+
+    theme_classic()+
+    theme(panel.grid.major.x  = element_line(),
+          panel.grid.minor.x  = element_line(),
+          axis.line.x = element_line(),
+          axis.ticks =element_blank()) 
+  
+  if (add_base == TRUE){
+    p &lt;-  p + geom_vline(xintercept = 1/40,lty=2,col=&quot;black&quot;)
+  }
+  return(p)
+}
+
+gg_monopoly_short &lt;- function(n_games,n_rolls) {
+  
+  sim_result &lt;-  simulate_monopoly(n_games,n_rolls)
+  
+  p &lt;- monopoly_props %&gt;% 
+    bind_cols(pct = sim_result ) %&gt;% 
+    ggplot(aes(y= reorder(Name,-Space) ,x=pct,fill=Color ))+
+    geom_col(show.legend = FALSE)+
+    scale_fill_manual(values = color_codes)+
+    scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1) )+
+    labs(x=&quot;Times landed on (%)&quot;,y=&quot;&quot;)+
+    ggtitle(label=paste(&quot;Simulating&quot;,n_rolls,&quot;rolls over&quot;,n_games,&quot;games&quot; ))+
+    theme_classic()+
+    theme(panel.grid.major.x  = element_line(),
+          panel.grid.minor.x  = element_line(),
+          axis.line.x = element_line(),
+          axis.ticks =element_blank(),
+          axis.text.y = element_text(size=7),
+    ) 
+  return(p)
+}</code></pre>
+<p>Here is playing board:</p>
+<pre class="r"><code>board_space</code></pre>
+<pre><code>##                       Go            Old Kent Road        Community Chest 1 
+##                        0                        1                        2 
+##         Whitechapel Road               Income Tax     King&#39;s Cross Station 
+##                        3                        4                        5 
+##     The Angel, Islington                 Chance 1              Euston Road 
+##                        6                        7                        8 
+##         Pentonville Road    In Jail/Just Visiting                Pall Mall 
+##                        9                       10                       11 
+##         Electric Company                Whitehall    Northumberland Avenue 
+##                       12                       13                       14 
+##       Marylebone Station               Bow Street        Community Chest 2 
+##                       15                       16                       17 
+##       Marlborough Street              Vine Street             Free Parking 
+##                       18                       19                       20 
+##                   Strand                 Chance 2             Fleet Street 
+##                       21                       22                       23 
+##         Trafalgar Square Fenchurch Street Station         Leicester Square 
+##                       24                       25                       26 
+##          Coventry Street              Water Works               Piccadilly 
+##                       27                       28                       29 
+##               Go to Jail            Regent Street            Oxford Street 
+##                       30                       31                       32 
+##        Community Chest 3              Bond Street Liverpool Street Station 
+##                       33                       34                       35 
+##                 Chance 3                Park Lane                Super Tax 
+##                       36                       37                       38 
+##                  Mayfair 
+##                       39</code></pre>
+</div>
+<div id="dice-function" class="section level1">
+<h1>Dice Function</h1>
+<p>First thing to do in a game of monopoly is to roll the dice and move according to the sum of the top faces.</p>
+<pre class="r"><code>dice_rolls &lt;-  function(){
+  return(sample(1:6,2,replace = TRUE))
+}
+
+set.seed(414)
+roll &lt;-  dice_rolls()
+print(paste0(&quot;Rolled a &quot;,roll[1],&quot; and &quot;,roll[2],&quot;. Their sum is &quot;, roll[1]+roll[2] ))</code></pre>
+<pre><code>## [1] &quot;Rolled a 3 and 5. Their sum is 8&quot;</code></pre>
+</div>
+<div id="simulating-going-around-the-board" class="section level1">
+<h1>Simulating going around the board</h1>
+<p>Now we create a simple simulation of going around a board</p>
+<pre class="r"><code>simulate_monopoly &lt;- function(n_games=1000,n_rolls=1000){
+  
+  all_counts &lt;- rep(0,40)
+  for (g in 1:n_games){ 
+    pos &lt;-  0
+    counts &lt;-  rep(0,40)
+    for (i in 1:n_rolls){
+      
+      # roll the dice
+      roll &lt;-  dice_rolls()  
+      
+      # move around the board
+      pos &lt;-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      counts[pos+1] &lt;-  counts[pos+1] + 1 # counts[] does not start from 0, hence need +1
+    }
+    all_counts &lt;- all_counts + counts
+  }
+  all_counts &lt;-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}</code></pre>
+<div id="simulating-dice-rolls" class="section level2">
+<h2>Simulating dice rolls</h2>
+<p>We can see how the distribution changes as we increase the number of dice rolls in a game.</p>
+<pre class="r"><code>set.seed(414) 
+
+( gg_monopoly_short(1,1) + gg_monopoly_short(1,10)  ) / (  gg_monopoly_short(1,50) + gg_monopoly_short(1,100)    )</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="960" /></p>
+<p>Simulating more rolls allows more squares to be landed on.</p>
+<p>We see the chance of landing on a particular square converges to a value as we use larger and larger dice rolls.</p>
+<pre class="r"><code>set.seed(414)
+game_1 &lt;-  simulate_monopoly(1,1000)
+game_2 &lt;-  simulate_monopoly(1,5000)
+game_3 &lt;-  simulate_monopoly(1,10000)
+game_4 &lt;-  simulate_monopoly(1,50000)
+game_5 &lt;-  simulate_monopoly(1,100000)
+
+p &lt;- monopoly_props %&gt;% bind_cols( &quot;1,000&quot;=game_1,
+                                   &quot;5,000&quot;=game_2 , 
+                                   &quot;10,000&quot;=game_3  ,
+                                   &quot;50,000&quot;=game_4,
+                                   &quot;100,000&quot;=game_5) %&gt;% 
+  pivot_longer(&quot;1,000&quot;:&quot;100,000&quot;) %&gt;% 
+  mutate (  name = factor(name, levels=c(&quot;1,000&quot;,
+                                         &quot;5,000&quot;, 
+                                         &quot;10,000&quot;,
+                                         &quot;50,000&quot;,
+                                         &quot;100,000&quot;)  
+  ) 
+  ) %&gt;% 
+  #ggplot(aes(x=value,y=Name,fill=Color)) +
+  ggplot(aes(x=value,y=reorder(Name,-Space),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,1) )+
+  #scale_y_continuous(breaks = 1:40, labels = unique(monopoly_props$Name)) +
+  labs(
+    #    subtitle = glue::glue(&quot;Simulation of {format(n_rolls)} dice rolls over {n_games} games&quot;  ),
+    x=&quot;Chance of landing per dice roll (%)&quot;,y=&quot;&quot;)+
+  geom_vline(xintercept = (1/40),lty=2)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim &lt;- p+transition_states(name)+ease_aes(&#39;sine-in-out&#39;)+
+  ggtitle(&quot;Simulation of {closest_state} dice rolls over 1 game&quot;)
+
+animate(anim,fps=30)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.gif" /><!-- --></p>
+<p>After 100,000 dice rolls we reach a the chance of landing on a square as 2.5%.</p>
+<p>Now, if we were to increase the number of games played, we can get a view of the many different paths a player can take.</p>
+<pre class="r"><code>set.seed(414) 
+
+( gg_monopoly_short(1,5) + gg_monopoly_short(10,5)  ) / (  gg_monopoly_short(50,5) + gg_monopoly_short(100,5)    )</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="960" /></p>
+</div>
+<div id="simulating-number-of-games" class="section level2">
+<h2>Simulating number of games</h2>
+<p>We can also simulate a large number of games. The next animation shows the chance of landing on a square for each roll in the first 10 rolls in 10,000 games.</p>
+<pre class="r"><code>set.seed(414)
+games &lt;-  rep(NA,10)
+for (i in 1:10){
+  temp  &lt;-  simulate_monopoly(10000,i)
+  nam &lt;- paste0(&quot;game_&quot;, i)
+  assign(nam, temp)
+}
+
+df &lt;- monopoly_props %&gt;% bind_cols( &quot;1&quot;=game_1,&quot;2&quot;=game_2 , &quot;3&quot;=game_3  ,&quot;4&quot;=game_4,
+                                    &quot;5&quot;=game_5,&quot;6&quot;=game_6,&quot;7&quot;=game_7 , &quot;8&quot;=game_8  ,
+                                    &quot;9&quot;=game_9,&quot;10&quot;=game_10) %&gt;% 
+  pivot_longer(&quot;1&quot;:&quot;10&quot;) %&gt;% 
+  mutate (  name = as.numeric(name) )  
+
+p &lt;- df %&gt;% 
+  ggplot(aes(x=value,y=reorder(Name,-Space),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,5) )+
+  labs(x=&quot;Chance of landing per dice roll (%)&quot;,y=&quot;&quot;)+
+  geom_vline(xintercept = (1/40),lty=2)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim &lt;- p+transition_states(name)+ ease_aes(&#39;sine-in-out&#39;)+
+  ggtitle(&quot;Simulation of the first {closest_state} dice rolls over 10,000 games&quot;,
+          subtitle = &quot;Most likely place to land: { df %&gt;%  filter(name==closest_state) %&gt;% slice_max(order_by = value) %&gt;% select(Name) %&gt;% pull() }&quot;)
+
+animate(anim,fps=30,nframes = 300)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.gif" /><!-- --></p>
+<p>After one dice roll, the probabilities of landing on a square are normally distributed with the mean being seven places away from go - the chance square. This is because rolling a seven is the most likeliest outcome.</p>
+<p>After more dice rolls the probabilities start to spread themselves out across the board. This shows the many paths a player can take after just several rolls.</p>
+</div>
+<div id="simulating-large-number-of-rolls-and-games" class="section level2">
+<h2>Simulating large number of rolls and games</h2>
+<p>If we were to simulate a large number of rolls over a large number of games, we can get the long term behaviour as shown below.</p>
+<p>Now we see that basically speaking, the chances of landing on any square in the long run is equal for all spaces. This should not be too surprising as there is a 1-in-40 chance of landing on any given square.</p>
+<pre class="r"><code>set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+    scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 0.1 ),breaks = (1/100)*seq(0,100,0.5) )+
+  labs(title=&quot;Long term behaviour of going around the board&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>Note the dashed line at <code>2.5%</code>, this is the chance of randomly landing on a space on the board, which is <span class="math inline">\(\frac{1}{40}\)</span>.</p>
+</div>
+</div>
+<div id="going-to-jail-space" class="section level1">
+<h1>Going to Jail space</h1>
+<p>Next we add the condition of going to jail if one lands on the “Go to jail” space.</p>
+<pre class="r"><code>simulate_monopoly &lt;- function(n_games=1000,n_rolls=1000){
+  
+  all_counts &lt;- rep(0,40)
+  
+  for (g in 1:n_games){ 
+    pos &lt;-  0
+    counts &lt;-  rep(0,40)
+    for (i in 1:n_rolls){
+      roll &lt;-  dice_rolls()  
+      pos &lt;-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      # If land on go to jail - go to jail
+      if (pos == 30){
+        pos = 10 
+      }
+      counts[pos+1] &lt;-  counts[pos+1] + 1 
+    }
+    all_counts &lt;- all_counts + counts
+  }
+  all_counts &lt;-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}</code></pre>
+<pre class="r"><code>set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+  labs(title=&quot;Adding go to jail&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>On viewing the graph, there is a noticeable increase in the chance of ending a turn in jail. The spaces ahead of jail also see a slight increase, while all the other places see a dip</p>
+</div>
+<div id="adding-doubles-rule" class="section level1">
+<h1>Adding doubles rule</h1>
+<p>Next, we add the doubles rule of re-rolling if a player rolls a double, but if a player rolls 3 doubles in a row, then they get sent to jail.</p>
+<pre class="r"><code>simulate_monopoly &lt;- function(n_games=1000,n_rolls=1000){
+  
+  all_counts &lt;- rep(0,40)
+  
+  for (g in 1:n_games){ 
+    pos &lt;-  0
+    counts &lt;-  rep(0,40)
+    n_doubles &lt;-  0
+    
+    for (i in 1:n_rolls){
+      roll &lt;-  dice_rolls()  
+      
+      # if double then n_double += 1
+      # else n_doubles = 0
+      if  (roll[1] == roll[2] ) { n_doubles &lt;- n_doubles + 1}
+      else {n_doubles = 0}
+      
+      pos &lt;-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      # If landed on Go-to-Jail or n_doubles == 3 
+      if (pos == 30 || n_doubles == 3 ){  
+        pos = 10 # go jail &amp; reset n_double
+        n_doubles = 0
+      }
+      
+      counts[pos+1] &lt;-  counts[pos+1] + 1 
+    }
+    all_counts &lt;- all_counts + counts
+  }
+  all_counts &lt;-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}</code></pre>
+<pre class="r"><code>set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+  labs(title=&quot;Adding doubles rule&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p>By adding the doubles rule, the chances of going to jail per dice roll increase from under 5% to around 5.5%.</p>
+</div>
+<div id="adding-chance-and-community-chest-cards" class="section level1">
+<h1>Adding chance and community chest cards</h1>
+<p>Now we add the affects of drawing cards from the chance or community chest places</p>
+<div id="chance-cards" class="section level2">
+<h2>Chance cards</h2>
+<p>Here I will use the assumption from this <a href="https://monopoly.fandom.com/wiki/Chance">site</a> about the chance cards distribution.</p>
+<p>Namely, of the 16 chance cards, there are 10 that move a player, and two of those are going to the nearest station</p>
+<pre class="r"><code># Function for drawing chance cards
+
+draw_chance_card &lt;- function(pos){
+  
+  jailed &lt;- FALSE
+  cards &lt;- c(&quot;Kings&quot;,&quot;Jail&quot;,&quot;Backwards&quot;,&quot;Trafalgar&quot;,
+             &quot;Pall&quot;,&quot;Mayfair&quot;,&quot;Go&quot;,&quot;Utility&quot;,
+             &quot;Station&quot;,&quot;Station&quot;, &quot;None&quot;,&quot;None&quot;,
+             &quot;None&quot;,&quot;None&quot;,&quot;None&quot;,&quot;None&quot;
+  )
+  drawn &lt;-  sample(cards,1)
+  
+  if (drawn ==&quot;None&quot;){pos=pos} # If none then do nothing
+  else if (drawn == &quot;Kings&quot;){pos=5 } 
+  else if (drawn == &quot;Jail&quot;){pos=10 ;jailed=TRUE } 
+  else if (drawn == &quot;Backwards&quot;){pos= pos-3 }
+  else if (drawn ==  &quot;Trafalgar&quot;) {pos = 24}
+  else if (drawn ==  &quot;Pall&quot;) {pos = 11}
+  else if (drawn == &quot;Mayfair&quot;) {pos=39}
+  else if (drawn == &quot;Go&quot;){pos=0}
+  else if (drawn == &quot;Utility&quot;){ # Go to nearest utility
+    while (!pos %in% c(12,28))
+    {pos = ( pos + 1 ) %% 40}
+  }
+  else if(drawn == &quot;Station&quot;){ # Go to nearest station
+    while (!pos %in% c(5,15,25,35) )
+    {pos = ( pos + 1 ) %% 40}
+  }
+  
+  return( list(pos,jailed) )
+}</code></pre>
+</div>
+<div id="community-chest" class="section level2">
+<h2>Community Chest</h2>
+<p>Likewise with chance cards, I will use the assumption from the same <a href="https://monopoly.fandom.com/wiki/Community_Chest">site</a> about the community chest card distribution.</p>
+<p>Namely, of the cards, only two move a player.</p>
+<pre class="r"><code>draw_chest_card &lt;- function(pos){
+  
+  jailed &lt;-  FALSE
+  cards &lt;- c(&quot;Go&quot;,&quot;Jail&quot;,&quot;None&quot;,&quot;None&quot;,
+             &quot;None&quot;,&quot;None&quot;,&quot;None&quot;,&quot;None&quot;,
+             &quot;None&quot;,&quot;None&quot;,&quot;None&quot;,&quot;None&quot;,
+             &quot;None&quot;,&quot;None&quot;,&quot;None&quot;,&quot;None&quot;
+  )
+  drawn &lt;-  sample(cards,1)
+  
+  if (drawn == &quot;None&quot;){pos = pos} # If none then do nothing
+  else if (drawn == &quot;Jail&quot;){pos=10; jailed=TRUE} 
+  else if (drawn == &quot;Go&quot;){pos=0}
+  
+  return(list(pos,jailed) )
+}</code></pre>
+<p>There may be slight differences depending on region or edition. Any differences in the cards will result in changes in the short-term and long-term behaviour of going around a board.</p>
+<pre class="r"><code>simulate_monopoly &lt;- function(n_games=1000,n_rolls=1000){
+  all_counts &lt;- rep(0,40)
+  for (g in 1:n_games){ 
+    pos &lt;-  0
+    jailed &lt;- FALSE
+    counts &lt;-  rep(0,40)
+    n_doubles &lt;-  0
+    
+    
+    for (i in 1:n_rolls){
+      roll &lt;-  dice_rolls()  
+      
+      if  (roll[1] == roll[2] ) { n_doubles &lt;- n_doubles + 1}
+      else {n_doubles = 0}
+      
+      pos &lt;-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      if (pos == 30 || n_doubles == 3  ){  
+        pos = 10 
+        n_doubles = 0
+      }
+ 
+      #### Card actions
+      ## land on chance
+      if (pos %in% c(7,22,36) ){
+        card_res = draw_chance_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      ## land on community chest
+      else if (pos %in% c(2,17,33)  ){
+        card_res = draw_chest_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      
+      
+      counts[pos+1] &lt;-  counts[pos+1] + 1 
+    }
+    all_counts &lt;- all_counts + counts
+  }
+  all_counts &lt;-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}</code></pre>
+<p>As seen previously, we can simulate the first 10 rolls over many games.</p>
+<pre class="r"><code>set.seed(414)
+games &lt;-  rep(NA,10)
+for (i in 1:10){
+  temp  &lt;-  simulate_monopoly(10000,i)
+  nam &lt;- paste0(&quot;game_&quot;, i)
+  assign(nam, temp)
+}
+
+df &lt;- monopoly_props %&gt;% bind_cols( &quot;1&quot;=game_1,&quot;2&quot;=game_2 , &quot;3&quot;=game_3  ,&quot;4&quot;=game_4,&quot;5&quot;=game_5,
+                                    &quot;6&quot;=game_6,&quot;7&quot;=game_7 , &quot;8&quot;=game_8  ,&quot;9&quot;=game_9,&quot;10&quot;=game_10) %&gt;% 
+  pivot_longer(&quot;1&quot;:&quot;10&quot;) %&gt;% 
+  mutate (  name = as.numeric(name) ) 
+
+p &lt;- df %&gt;% 
+  ggplot(aes(x=value,y=reorder(Name,-Space),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,5) )+
+  labs(x=&quot;Chance of ending on square per dice roll (%)&quot;,y=&quot;&quot;)+
+  geom_vline(xintercept = (1/40),lty=2)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim &lt;- p+transition_states(name)+ #ease_aes(&#39;sine-in-out&#39;)+
+  ggtitle(&quot;Simulation of the first {closest_state} dice rolls over 10,000 games&quot;,
+          subtitle = &quot;Most likely square to end on: {cities &lt;-  df %&gt;%  filter(name==closest_state) %&gt;% slice_max(order_by = value,n=1) %&gt;% select(Name) %&gt;% pull() }&quot;)
+
+animate(anim,fps=30,nframes = 300)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-19-1.gif" /><!-- --></p>
+<p>Notice that after only a few rolls, landing in jail becomes the likeliest place to end up on after a given dice roll.</p>
+<p>The interpretation for the probabilities is now slightly more nuanced. Instead of referring the chance of landing per dice rolls, it now refers to <strong><em>the chance of ending up on a square after each dice roll per dice roll</em></strong>.</p>
+<p>The difference is due to the changes induced by card actions or going to jail by gaining doubles. The simulation only records the final position after a dice roll.</p>
+<pre class="r"><code>set.seed(414)
+gg_monopoly(1e3,1e3,add_base = TRUE)+
+  labs(title=&quot;Adding chance cards and community chest actions&quot;,
+       x=&quot;Chance of ending on square per dice roll (%)&quot;,y=&quot;&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<p>Going to jail now has about a 6% chance of happening per turn. The addition of chance cards has also altered the distribution of landing on any space, for example Trafalgar Square has the highest chance of being landed for any property.</p>
+<p>The stations also a receive a large boost.</p>
+<pre class="r"><code>n_games &lt;-  1e3
+n_rolls &lt;-  1e3
+set.seed(414)
+sim_res &lt;-  simulate_monopoly(n_games,n_rolls)
+
+monopoly_props %&gt;% 
+  bind_cols(pct =  sim_res) %&gt;% 
+  filter(Name != &quot;Go to Jail&quot; ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,pct),fill=Color  ))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,1) )+
+  labs(title = &quot;Trafalgar Square, Vine Street, and most stations are the properties\nthat have the highest chance of being landed on&quot;,
+       subtitle = glue::glue(&quot;Simulation of {format(n_rolls)} dice rolls over {n_games} games&quot;  ),
+       x=&quot;Chance of ending on square per dice roll (%)&quot;,y=&quot;&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+<p>The most likeliest purchasable properties are Trafalgar Square, followed by Vine Street, and several stations.</p>
+<p>The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.</p>
+</div>
+</div>
+<div id="jail-strategy" class="section level1">
+<h1>Jail strategy</h1>
+<p>It is apparent that there are two strategies to consider when in jail.</p>
+<ul>
+<li><p>The first is leaving jail as soon as possible</p></li>
+<li><p>The second is staying in jail as long as possible</p></li>
+</ul>
+<p>They come about because initially, when the board is empty and there are many properties up for grabs, a player would want to land on those squares are purchase that property, and they would not be able to do that when in jail</p>
+<p>But when there are many properties owned by other places and some of those properties has houses or hotels placed on them, it can be very damaging to a players cash pile and cause a ruin. Thus staying in jail to collect rent from your opponents while also buying time to avoid landing on potential game-ending squares.</p>
+<p>We will adjust the simulator to take into account both strategies.</p>
+<pre class="r"><code>simulate_monopoly &lt;- function(n_games = 1000, n_rolls = 1000,jail_stay = TRUE){
+  all_counts = rep(0,40)
+  for (g in 1:n_games){
+    pos = 0
+    n_doubles = 0
+    jailed = FALSE
+    jail_turns = 0
+    counts = rep(0,40)
+    for (i in 1:n_rolls){
+      
+      roll &lt;-  dice_rolls()
+      
+      ##### stay in jail strategy
+      if (jail_stay  ){
+        # Checks for doubles or jail
+        if  (  (roll[1] == roll[2]) &amp; !jailed) # if doubles and not in jail
+        { n_doubles = n_doubles + 1
+        #   print(&quot;NOT IN jail - doubles&quot;)
+        }        
+        else if ( (roll[1] != roll[2]) &amp; jailed &amp; jail_turns !=3) # if not doubles and in jail
+        {  jail_turns = jail_turns + 1
+        roll = c(0,0)
+        #  print(&quot;IN jail - NO doubles&quot;)
+        #  print(paste(&quot;In jail for:&quot;,jail_turns))
+        } 
+        else if ( ( (roll[1] == roll[2]) &amp; jailed) | jail_turns == 3  )  # if doubles and in jail, or spent 3 turns in jail
+        {n_doubles = 0
+        jail_turns = 0
+        jailed = FALSE
+        #  print(&quot;IN jail - DOUBLES&quot;) 
+        }
+        else {n_doubles = 0
+        # print(&quot;NOT IN jail - NO doubles&quot;)
+        }                # if not doubles and not in jail
+      }
+      
+      #### leave jail strategy
+      else if (!jail_stay){
+        if  (roll[1] == roll[2] ) { n_doubles = n_doubles + 1}
+        else {n_doubles = 0}
+      }
+      
+      # move to new position
+      pos &lt;-  ( pos + roll[1]+roll[2] ) %% 40
+      
+      # If landed on Go-to-Jail or got 3 doubles
+      if (pos == 30 || n_doubles == 3 ){  # go jail and reset doubles  
+        pos = 10 
+        n_doubles  = 0
+        jailed = TRUE
+      }
+      
+      #### Card actions
+      ## land on chance
+      if (pos %in% c(7,22,36) ){
+        card_res = draw_chance_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      ## land on community chest
+      else if (pos %in% c(2,17,33)  ){
+        card_res = draw_chest_card(pos)
+        pos = card_res[[1]]
+        jailed = card_res[[2]]
+      }
+      
+      
+      counts[pos+1] &lt;-  counts[pos+1] + 1
+    }
+    all_counts &lt;- all_counts + counts
+    
+  }
+  all_counts &lt;-  all_counts/(n_rolls*n_games)
+  return(all_counts)
+}</code></pre>
+<p>The simulation now takes into the two strategies - leaving jail asap, or staying as long as possible.</p>
+<p>We can see how the strategies result in different probabilities for ending on a particular square in the long term.</p>
+<pre class="r"><code>n_games &lt;-  1e2 ; n_rolls &lt;-  1e3
+set.seed(414)
+game_1 &lt;- simulate_monopoly(n_games, n_rolls ,jail_stay = FALSE)
+set.seed(414)
+game_2 &lt;- simulate_monopoly(n_games, n_rolls , jail_stay = TRUE)</code></pre>
+<pre class="r"><code>p &lt;- monopoly_props %&gt;% 
+  bind_cols(Leave_jail = game_1, Stay_jail = game_2   ) %&gt;% 
+  rename( &quot;Leave jail&quot; = Leave_jail,
+          &quot;Stay in jail&quot; = Stay_jail) %&gt;% 
+  pivot_longer(cols=c(&quot;Leave jail&quot;,&quot;Stay in jail&quot;)) %&gt;% 
+  ggplot(aes(x=value,y=reorder(Name,-Space ),fill=Color)) +
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 1),breaks = (1/100)*seq(0,100,2) )+
+  labs(
+    subtitle = glue::glue(&quot;Simulation of {format(n_rolls)} dice rolls over {n_games} games&quot;  ),
+    x=&quot;Chance of ending on square per dice roll (%)&quot;,y=&quot;&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+anim &lt;-  p + transition_states(name) + ease_aes(&#39;sine-in-out&#39;) +
+  ggtitle(&#39;Strategy: {closest_state}&#39;)
+
+animate(anim,fps=30)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-24-1.gif" /><!-- --></p>
+<p>Up to now all the simulations took the jail strategy as leaving instantly, but when we compare the long term probabilities, we see that the chance of ending up in jail is even more dominant than the previous strategy of leaving.</p>
+<p>This large increase for ending up in jail suppresses the probabilities for ending a dice roll on other squares.</p>
+</div>
+<div id="a-more-realistic-scenario" class="section level1">
+<h1>A more realistic scenario</h1>
+<p>The problem with these simulations is that it assumes that games of monopoly will take a sufficiently long enough time to reach the steady states discussed previously.</p>
+<p>The average number of dice rolls per player in a game of monopoly is about 30 dice rolls<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>. So using this fact, I will simulate a game with 30 dice rolls. Though there have been estimates ranging from 30-45 rolls.</p>
+<p>Since supposedly most games end after 30 dice rolls, then using this number in our simulation should give us accurate results that correspond to what happens in a real game. However, in the event that a game goes on for longer than 30 dice rolls per player, I will also long at the long term limit of dice rolls and also study those scenarios.</p>
+<p>So overall I will look at four possible situations; the chance of landing on a square after:</p>
+<ul>
+<li><p>many dice rolls, leaving jail</p></li>
+<li><p>many dice rolls, stay in jail</p></li>
+<li><p>30 dice rolls, leaving jail</p></li>
+<li><p>30 dices rolls, stay in jail</p></li>
+</ul>
+<pre class="r"><code>set.seed(414)
+leave_long &lt;- simulate_monopoly(n_games = 1e4,n_rolls =1e3 ,jail_stay = FALSE)
+set.seed(414)
+stay_long&lt;- simulate_monopoly(n_games = 1e4,n_rolls =1e3 ,jail_stay = TRUE)
+
+set.seed(414)
+leave_30 &lt;-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = FALSE)
+set.seed(414)
+stay_30 &lt;-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = TRUE)</code></pre>
+<p>We can view the relative percentage difference between the two dice roll situations. This asks the question, what squares are more likely to be landed on than others for the different scenarios?</p>
+<p>First up we look at the difference of leaving jail after 30 dice rolls to leaving jail after many rolls.</p>
+<pre class="r"><code>monopoly_props %&gt;% 
+  mutate ( pct =  (leave_30 -leave_long)/leave_long ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02))+
+  labs(title = &quot;The chances of ending on a light blue, pink or orange are higher\nafter 30 dice rolls than many dice rolls&quot;,
+       subtitle = &quot;Relative percentage difference of ending on a square \n from 30 dice rolls to many dice rolls for leaving jail&quot;,
+       x=&quot;Relative percentage difference (%)&quot;,y=&quot;&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-26-1.png" width="672" /></p>
+<p>The above graph shows that when using simulating for 30 dice rolls instead of many, there is an big increase in squares that are in the first 5-20 squares than in all the other squares. In particular, the light blue and pinks see a very large percentage increase in the chances of landing on that square.</p>
+<p>Likewise we can see the difference for the stay in jail strategy.</p>
+<pre class="r"><code>monopoly_props %&gt;% 
+  mutate ( pct =  (stay_30 -stay_long)/stay_long ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02))+
+  labs(title = &quot;The chances of ending on a light blue, pink or orange are higher\nafter 30 dice rolls than many dice rolls&quot;,
+       subtitle = &quot;Relative percentage difference of ending on a square \n from 30 dice rolls to many dice rolls for staying in jail&quot;,
+       x=&quot;Relative percentage difference (%)&quot;,y=&quot;&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-27-1.png" width="672" /></p>
+<p>We see a similar situation to the leaving jail scenario, however, the big difference is that the simulation results suggest that there is a 4% decrease in the change of staying in after 30 dice rolls than going to jail after many dice rolls.</p>
+</div>
+<div id="graph-of-results" class="section level1">
+<h1>Graph of results</h1>
+<p>Here are the graphs for the various results. First for many dice rolls</p>
+<pre class="r"><code>p1 &lt;-  monopoly_props %&gt;% 
+  mutate ( pct =  leave_long ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),&quot;%&quot;),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.08) )+
+  labs(title = &quot;Leave jail&quot;,y=&quot;&quot;,
+              x=&quot;Chance of ending on square per dice roll (%)&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p2 &lt;- monopoly_props %&gt;% 
+  mutate ( pct =  stay_long ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),&quot;%&quot;),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.15) )+
+  labs(title = &quot;Stay in Jail&quot;,y=&quot;&quot;,
+              x=&quot;Chance of ending on square per dice roll (%)&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p1 + p2 + patchwork::plot_annotation(title = &quot;Chance of ending on a square for many dice rolls&quot;,subtitle =&quot;Simulation of 1,000 dice rolls over 10,000 games&quot; )</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-28-1.png" width="960" /></p>
+<p>The second is the scenario after 30 dice rolls.</p>
+<pre class="r"><code>p1 &lt;-  monopoly_props %&gt;% 
+  mutate ( pct =  leave_30 ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),&quot;%&quot;),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.08) )+
+  labs(title = &quot;Leave jail&quot;,y=&quot;&quot;,
+              x=&quot;Chance of ending on square per dice roll (%)&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p2 &lt;- monopoly_props %&gt;% 
+  mutate ( pct =  stay_30 ) %&gt;% 
+  ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= paste(round(pct*100,1),&quot;%&quot;),x=pct ),size=3,hjust=-.1 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand=c(0,NA), labels = scales::percent_format(accuracy = 1),breaks = seq(-1,1,0.02),limits = c(0,0.15) )+
+  labs(title = &quot;Stay in Jail&quot;,y=&quot;&quot;,
+              x=&quot;Chance of ending on square per dice roll (%)&quot;)+
+  theme_classic()+
+  theme(panel.grid.major.x  = element_line(size = .9),
+        panel.grid.minor.x  = element_line(size = .5),
+        axis.line.x = element_line(),
+        axis.ticks =element_blank())
+
+p1 + p2 + patchwork::plot_annotation(title = &quot;Chance of ending on a square after 30 dice rolls&quot;,subtitle =&quot;Simulation of 30 dice rolls over 100,000 games&quot; )</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" width="960" /></p>
+<div id="table-of-simulation-results" class="section level2">
+<h2>Table of simulation results</h2>
+<p>Finally, before we finish we can view a table of results for the probabilities of landing on a particular square.</p>
+<ul>
+<li><p>For many dice rolls, <code>n_games = 10^4</code> and <code>n_rolls = 10^3</code></p></li>
+<li><p>For 30 dice rolls, <code>n_games = 10^5</code> and <code>n_rolls = 30</code></p></li>
+</ul>
+<pre class="r"><code>monopoly_props %&gt;% 
+  select(Space,Color,Name) %&gt;% 
+  mutate( &quot;long_leave&quot; = leave_long,
+          &quot;long_stay&quot; = stay_long,
+          &quot;30_leave&quot;  =leave_30,
+          &quot;30_stay&quot; = stay_30) %&gt;%
+  mutate( across( &quot;long_leave&quot;:&quot;30_stay&quot;   , ~ scales::percent(.x,accuracy = 0.01)  )) %&gt;% 
+  kableExtra::kable(col.names = c(&quot;Space&quot;,&quot;Group&quot;,&quot;Name&quot;,&quot;Leave Jail&quot;,&quot;Stay Jail&quot;,&quot;Leave Jail&quot;,&quot;Stay Jail&quot;),
+                    align = &quot;clrcccc&quot;) %&gt;% 
+  kableExtra::kable_styling(bootstrap_options = c(&quot;striped&quot;,&quot;condensed&quot;),full_width = F) %&gt;% 
+  kableExtra::add_header_above(c(&quot; &quot; = 3, &quot;Many rolls&quot; = 2, &quot;30 rolls&quot; = 2)  ) </code></pre>
+<table class="table table-striped table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="empty-cells: hide;border-bottom:hidden;" colspan="3">
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Many rolls
+</div>
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+30 rolls
+</div>
+</th>
+</tr>
+<tr>
+<th style="text-align:center;">
+Space
+</th>
+<th style="text-align:left;">
+Group
+</th>
+<th style="text-align:right;">
+Name
+</th>
+<th style="text-align:center;">
+Leave Jail
+</th>
+<th style="text-align:center;">
+Stay Jail
+</th>
+<th style="text-align:center;">
+Leave Jail
+</th>
+<th style="text-align:center;">
+Stay Jail
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">
+0
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Go
+</td>
+<td style="text-align:center;">
+3.08%
+</td>
+<td style="text-align:center;">
+2.85%
+</td>
+<td style="text-align:center;">
+2.90%
+</td>
+<td style="text-align:center;">
+2.70%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+1
+</td>
+<td style="text-align:left;">
+Brown
+</td>
+<td style="text-align:right;">
+Old Kent Road
+</td>
+<td style="text-align:center;">
+2.13%
+</td>
+<td style="text-align:center;">
+1.96%
+</td>
+<td style="text-align:center;">
+1.93%
+</td>
+<td style="text-align:center;">
+1.81%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+2
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Community Chest 1
+</td>
+<td style="text-align:center;">
+1.88%
+</td>
+<td style="text-align:center;">
+1.74%
+</td>
+<td style="text-align:center;">
+1.79%
+</td>
+<td style="text-align:center;">
+1.67%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+3
+</td>
+<td style="text-align:left;">
+Brown
+</td>
+<td style="text-align:right;">
+Whitechapel Road
+</td>
+<td style="text-align:center;">
+2.16%
+</td>
+<td style="text-align:center;">
+2.00%
+</td>
+<td style="text-align:center;">
+2.15%
+</td>
+<td style="text-align:center;">
+2.00%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+4
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Income Tax
+</td>
+<td style="text-align:center;">
+2.34%
+</td>
+<td style="text-align:center;">
+2.15%
+</td>
+<td style="text-align:center;">
+2.42%
+</td>
+<td style="text-align:center;">
+2.26%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+5
+</td>
+<td style="text-align:left;">
+Station
+</td>
+<td style="text-align:right;">
+King’s Cross Station
+</td>
+<td style="text-align:center;">
+2.96%
+</td>
+<td style="text-align:center;">
+2.76%
+</td>
+<td style="text-align:center;">
+3.12%
+</td>
+<td style="text-align:center;">
+2.93%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+6
+</td>
+<td style="text-align:left;">
+Light Blue
+</td>
+<td style="text-align:right;">
+The Angel, Islington
+</td>
+<td style="text-align:center;">
+2.27%
+</td>
+<td style="text-align:center;">
+2.10%
+</td>
+<td style="text-align:center;">
+2.51%
+</td>
+<td style="text-align:center;">
+2.37%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+7
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Chance 1
+</td>
+<td style="text-align:center;">
+0.87%
+</td>
+<td style="text-align:center;">
+0.80%
+</td>
+<td style="text-align:center;">
+0.99%
+</td>
+<td style="text-align:center;">
+0.94%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+8
+</td>
+<td style="text-align:left;">
+Light Blue
+</td>
+<td style="text-align:right;">
+Euston Road
+</td>
+<td style="text-align:center;">
+2.33%
+</td>
+<td style="text-align:center;">
+2.16%
+</td>
+<td style="text-align:center;">
+2.64%
+</td>
+<td style="text-align:center;">
+2.48%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+9
+</td>
+<td style="text-align:left;">
+Light Blue
+</td>
+<td style="text-align:right;">
+Pentonville Road
+</td>
+<td style="text-align:center;">
+2.31%
+</td>
+<td style="text-align:center;">
+2.13%
+</td>
+<td style="text-align:center;">
+2.54%
+</td>
+<td style="text-align:center;">
+2.40%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+10
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+In Jail/Just Visiting
+</td>
+<td style="text-align:center;">
+6.22%
+</td>
+<td style="text-align:center;">
+13.37%
+</td>
+<td style="text-align:center;">
+6.30%
+</td>
+<td style="text-align:center;">
+12.84%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+11
+</td>
+<td style="text-align:left;">
+Pink
+</td>
+<td style="text-align:right;">
+Pall Mall
+</td>
+<td style="text-align:center;">
+2.72%
+</td>
+<td style="text-align:center;">
+2.52%
+</td>
+<td style="text-align:center;">
+2.88%
+</td>
+<td style="text-align:center;">
+2.72%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+12
+</td>
+<td style="text-align:left;">
+Utilities
+</td>
+<td style="text-align:right;">
+Electric Company
+</td>
+<td style="text-align:center;">
+2.60%
+</td>
+<td style="text-align:center;">
+2.63%
+</td>
+<td style="text-align:center;">
+2.72%
+</td>
+<td style="text-align:center;">
+2.76%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+13
+</td>
+<td style="text-align:left;">
+Pink
+</td>
+<td style="text-align:right;">
+Whitehall
+</td>
+<td style="text-align:center;">
+2.38%
+</td>
+<td style="text-align:center;">
+2.10%
+</td>
+<td style="text-align:center;">
+2.44%
+</td>
+<td style="text-align:center;">
+2.19%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+14
+</td>
+<td style="text-align:left;">
+Pink
+</td>
+<td style="text-align:right;">
+Northumberland Avenue
+</td>
+<td style="text-align:center;">
+2.46%
+</td>
+<td style="text-align:center;">
+2.41%
+</td>
+<td style="text-align:center;">
+2.55%
+</td>
+<td style="text-align:center;">
+2.49%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+15
+</td>
+<td style="text-align:left;">
+Station
+</td>
+<td style="text-align:right;">
+Marylebone Station
+</td>
+<td style="text-align:center;">
+2.93%
+</td>
+<td style="text-align:center;">
+2.54%
+</td>
+<td style="text-align:center;">
+3.05%
+</td>
+<td style="text-align:center;">
+2.69%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+16
+</td>
+<td style="text-align:left;">
+Orange
+</td>
+<td style="text-align:right;">
+Bow Street
+</td>
+<td style="text-align:center;">
+2.79%
+</td>
+<td style="text-align:center;">
+2.64%
+</td>
+<td style="text-align:center;">
+2.86%
+</td>
+<td style="text-align:center;">
+2.71%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+17
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Community Chest 2
+</td>
+<td style="text-align:center;">
+2.59%
+</td>
+<td style="text-align:center;">
+2.19%
+</td>
+<td style="text-align:center;">
+2.64%
+</td>
+<td style="text-align:center;">
+2.26%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+18
+</td>
+<td style="text-align:left;">
+Orange
+</td>
+<td style="text-align:right;">
+Marlborough Street
+</td>
+<td style="text-align:center;">
+2.93%
+</td>
+<td style="text-align:center;">
+2.78%
+</td>
+<td style="text-align:center;">
+2.98%
+</td>
+<td style="text-align:center;">
+2.81%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+19
+</td>
+<td style="text-align:left;">
+Orange
+</td>
+<td style="text-align:right;">
+Vine Street
+</td>
+<td style="text-align:center;">
+3.09%
+</td>
+<td style="text-align:center;">
+2.72%
+</td>
+<td style="text-align:center;">
+3.11%
+</td>
+<td style="text-align:center;">
+2.76%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+20
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Free Parking
+</td>
+<td style="text-align:center;">
+2.90%
+</td>
+<td style="text-align:center;">
+2.80%
+</td>
+<td style="text-align:center;">
+2.91%
+</td>
+<td style="text-align:center;">
+2.82%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+21
+</td>
+<td style="text-align:left;">
+Red
+</td>
+<td style="text-align:right;">
+Strand
+</td>
+<td style="text-align:center;">
+2.83%
+</td>
+<td style="text-align:center;">
+2.54%
+</td>
+<td style="text-align:center;">
+2.85%
+</td>
+<td style="text-align:center;">
+2.56%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+22
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Chance 2
+</td>
+<td style="text-align:center;">
+1.05%
+</td>
+<td style="text-align:center;">
+1.04%
+</td>
+<td style="text-align:center;">
+1.04%
+</td>
+<td style="text-align:center;">
+1.04%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+23
+</td>
+<td style="text-align:left;">
+Red
+</td>
+<td style="text-align:right;">
+Fleet Street
+</td>
+<td style="text-align:center;">
+2.73%
+</td>
+<td style="text-align:center;">
+2.52%
+</td>
+<td style="text-align:center;">
+2.72%
+</td>
+<td style="text-align:center;">
+2.50%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+24
+</td>
+<td style="text-align:left;">
+Red
+</td>
+<td style="text-align:right;">
+Trafalgar Square
+</td>
+<td style="text-align:center;">
+3.19%
+</td>
+<td style="text-align:center;">
+2.93%
+</td>
+<td style="text-align:center;">
+3.15%
+</td>
+<td style="text-align:center;">
+2.93%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+25
+</td>
+<td style="text-align:left;">
+Station
+</td>
+<td style="text-align:right;">
+Fenchurch Street Station
+</td>
+<td style="text-align:center;">
+3.05%
+</td>
+<td style="text-align:center;">
+2.83%
+</td>
+<td style="text-align:center;">
+3.03%
+</td>
+<td style="text-align:center;">
+2.80%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+26
+</td>
+<td style="text-align:left;">
+Yellow
+</td>
+<td style="text-align:right;">
+Leicester Square
+</td>
+<td style="text-align:center;">
+2.70%
+</td>
+<td style="text-align:center;">
+2.47%
+</td>
+<td style="text-align:center;">
+2.65%
+</td>
+<td style="text-align:center;">
+2.43%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+27
+</td>
+<td style="text-align:left;">
+Yellow
+</td>
+<td style="text-align:right;">
+Coventry Street
+</td>
+<td style="text-align:center;">
+2.68%
+</td>
+<td style="text-align:center;">
+2.46%
+</td>
+<td style="text-align:center;">
+2.60%
+</td>
+<td style="text-align:center;">
+2.41%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+28
+</td>
+<td style="text-align:left;">
+Utilities
+</td>
+<td style="text-align:right;">
+Water Works
+</td>
+<td style="text-align:center;">
+2.80%
+</td>
+<td style="text-align:center;">
+2.60%
+</td>
+<td style="text-align:center;">
+2.73%
+</td>
+<td style="text-align:center;">
+2.54%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+29
+</td>
+<td style="text-align:left;">
+Yellow
+</td>
+<td style="text-align:right;">
+Piccadilly
+</td>
+<td style="text-align:center;">
+2.59%
+</td>
+<td style="text-align:center;">
+2.39%
+</td>
+<td style="text-align:center;">
+2.51%
+</td>
+<td style="text-align:center;">
+2.29%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+30
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Go to Jail
+</td>
+<td style="text-align:center;">
+0.00%
+</td>
+<td style="text-align:center;">
+0.00%
+</td>
+<td style="text-align:center;">
+0.00%
+</td>
+<td style="text-align:center;">
+0.00%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+31
+</td>
+<td style="text-align:left;">
+Green
+</td>
+<td style="text-align:right;">
+Regent Street
+</td>
+<td style="text-align:center;">
+2.67%
+</td>
+<td style="text-align:center;">
+2.47%
+</td>
+<td style="text-align:center;">
+2.56%
+</td>
+<td style="text-align:center;">
+2.38%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+32
+</td>
+<td style="text-align:left;">
+Green
+</td>
+<td style="text-align:right;">
+Oxford Street
+</td>
+<td style="text-align:center;">
+2.62%
+</td>
+<td style="text-align:center;">
+2.42%
+</td>
+<td style="text-align:center;">
+2.49%
+</td>
+<td style="text-align:center;">
+2.32%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+33
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Community Chest 3
+</td>
+<td style="text-align:center;">
+2.39%
+</td>
+<td style="text-align:center;">
+2.19%
+</td>
+<td style="text-align:center;">
+2.27%
+</td>
+<td style="text-align:center;">
+2.09%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+34
+</td>
+<td style="text-align:left;">
+Green
+</td>
+<td style="text-align:right;">
+Bond Street
+</td>
+<td style="text-align:center;">
+2.49%
+</td>
+<td style="text-align:center;">
+2.31%
+</td>
+<td style="text-align:center;">
+2.36%
+</td>
+<td style="text-align:center;">
+2.18%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+35
+</td>
+<td style="text-align:left;">
+Station
+</td>
+<td style="text-align:right;">
+Liverpool Street Station
+</td>
+<td style="text-align:center;">
+2.43%
+</td>
+<td style="text-align:center;">
+2.24%
+</td>
+<td style="text-align:center;">
+2.29%
+</td>
+<td style="text-align:center;">
+2.12%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+36
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Chance 3
+</td>
+<td style="text-align:center;">
+0.86%
+</td>
+<td style="text-align:center;">
+0.80%
+</td>
+<td style="text-align:center;">
+0.80%
+</td>
+<td style="text-align:center;">
+0.75%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+37
+</td>
+<td style="text-align:left;">
+Dark Blue
+</td>
+<td style="text-align:right;">
+Park Lane
+</td>
+<td style="text-align:center;">
+2.18%
+</td>
+<td style="text-align:center;">
+2.01%
+</td>
+<td style="text-align:center;">
+2.05%
+</td>
+<td style="text-align:center;">
+1.89%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+38
+</td>
+<td style="text-align:left;">
+None
+</td>
+<td style="text-align:right;">
+Super Tax
+</td>
+<td style="text-align:center;">
+2.18%
+</td>
+<td style="text-align:center;">
+2.01%
+</td>
+<td style="text-align:center;">
+2.00%
+</td>
+<td style="text-align:center;">
+1.86%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+39
+</td>
+<td style="text-align:left;">
+Dark Blue
+</td>
+<td style="text-align:right;">
+Mayfair
+</td>
+<td style="text-align:center;">
+2.63%
+</td>
+<td style="text-align:center;">
+2.43%
+</td>
+<td style="text-align:center;">
+2.47%
+</td>
+<td style="text-align:center;">
+2.29%
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>We have seen how to build a simulator from a basic idea of a player going round a board to then introducing more and more of the game’s mechanics to add further complexity and similarity to a real world game of monopoly. Some of the code for the simulator was inspired by Matt Parker’s Monopoly code<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>, but that was built in Python, while this is in R.</p>
+<p>Overall, we see that ending up in jail is the most likely space to end a dice roll on. The exact probability depends on the strategy and number of dice rolls played.</p>
+<p>The most likeliest purchasable properties to end a dice roll on are: Trafalgar Square, Vine Street, and several stations.</p>
+<p>The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.</p>
+<div id="next-up" class="section level2">
+<h2>Next up</h2>
+<p>In the next blogpost, I will look at the fun part! In particular I will look at the properties and deciding which are the best based on a number of factors like which properties give the best ROI? which can produce the fastest returns? which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?</p>
+<p>All that coming up!</p>
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>## R version 4.0.3 (2020-10-10)
+## Platform: x86_64-w64-mingw32/x64 (64-bit)
+## Running under: Windows 10 x64 (build 19041)
+## 
+## Matrix products: default
+## 
+## locale:
+## [1] LC_COLLATE=English_United Kingdom.1252 
+## [2] LC_CTYPE=English_United Kingdom.1252   
+## [3] LC_MONETARY=English_United Kingdom.1252
+## [4] LC_NUMERIC=C                           
+## [5] LC_TIME=English_United Kingdom.1252    
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+##  [1] gganimate_1.0.7 patchwork_1.1.1 forcats_0.5.0   stringr_1.4.0  
+##  [5] dplyr_1.0.2     purrr_0.3.4     readr_1.4.0     tidyr_1.1.2    
+##  [9] tibble_3.0.3    ggplot2_3.3.2   tidyverse_1.3.0
+## 
+## loaded via a namespace (and not attached):
+##  [1] Rcpp_1.0.5        lubridate_1.7.9   here_1.0.1        prettyunits_1.1.1
+##  [5] ps_1.4.0          assertthat_0.2.1  rprojroot_2.0.2   digest_0.6.25    
+##  [9] R6_2.4.1          cellranger_1.1.0  plyr_1.8.6        backports_1.1.10 
+## [13] reprex_0.3.0      evaluate_0.14     highr_0.8         httr_1.4.2       
+## [17] blogdown_0.21     pillar_1.4.6      rlang_0.4.7       progress_1.2.2   
+## [21] readxl_1.3.1      rstudioapi_0.11   gifski_0.8.6      blob_1.2.1       
+## [25] rmarkdown_2.5     labeling_0.4.2    webshot_0.5.2     munsell_0.5.0    
+## [29] broom_0.7.2       compiler_4.0.3    modelr_0.1.8      xfun_0.18        
+## [33] pkgconfig_2.0.3   htmltools_0.5.0   tidyselect_1.1.0  bookdown_0.21    
+## [37] viridisLite_0.3.0 fansi_0.4.1       crayon_1.3.4      dbplyr_1.4.4     
+## [41] withr_2.3.0       grid_4.0.3        jsonlite_1.7.1    gtable_0.3.0     
+## [45] lifecycle_0.2.0   DBI_1.1.0         magrittr_1.5      scales_1.1.1     
+## [49] cli_2.1.0         stringi_1.5.3     farver_2.0.3      fs_1.5.0         
+## [53] xml2_1.3.2        ellipsis_0.3.1    generics_0.0.2    vctrs_0.3.4      
+## [57] kableExtra_1.3.1  tools_4.0.3       glue_1.4.2        tweenr_1.0.1     
+## [61] hms_0.5.3         yaml_2.2.1        colorspace_1.4-1  rvest_0.3.6      
+## [65] knitr_1.30        haven_2.3.1</code></pre>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>This figure came from the youtube video <a href="https://www.youtube.com/watch?v=ubQXz5RBBtU">The Mathematics of Winning Monopoly</a> from the<br />
+Stand-up Maths channel and a <a href="https://blog.ed.ted.com/2017/12/01/heres-how-to-win-at-monopoly-according-to-math-experts/#:~:text=Since%20the%20average%20game%20of,money%20into%20longer%2Dterm%20investments">blog</a> post by the authors of the book mentioned in said video<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://www.dropbox.com/s/f5xndyafuj2cmpn/monopoly-v1.py?dl=0">Link</a> to the code.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

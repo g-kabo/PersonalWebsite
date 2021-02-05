@@ -1,0 +1,1117 @@
+---
+title: Simulating Monopoly - Part 2
+author: ''
+date: '2021-01-27'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+This is the second part in a two part series of looking at the game monopoly. If you haven't read part one, then click here to read the post. I will now assume you are familiar with monopoly and how the simulation was built.
+
+Previously we built a simulation of Monopoly and found that the most likeliest properties a player ends a dice roll on, that are also purchasable are: Trafalgar Square, Vine Street, and Stations.
+
+The least likeliest are Old Kent Road, Whitechapel Road, and Park Lane.
+
+In this post we will discuss the properties that are the best or worst depending on the metrics and scenarios we want to look at.
+
+First I will quickly load in the required data.
+
+```{r, message=FALSE}
+
+library(tidyverse)
+library(patchwork)
+library(ggtext)
+
+monopoly_props <-  readxl::read_xlsx(here::here("static/data/monpoly_properties.xlsx"))
+
+
+
+color_codes <-  c("None"="grey40",
+                  "Brown" = "#946C6B",
+                  "Station"="#AEC7D8",#   "#E3E4E5",
+                  "Light Blue"= "#79D7D8",
+                  "Pink" ="#ED63DF",# "#E51AD0",
+                  "Utilities" = "#4CB45C",# "#7FCA8B",
+                  "Orange" = "#E4901B",
+                  "Red"="#E71A18",
+                  "Yellow" = "#FFDC00",
+                  "Green" = "#097F09",
+                  "Dark Blue" = "#1F4AE0"
+                  )
+
+options(kableExtra.html.bsTable = TRUE)
+```
+
+We recall that in the first blogpost we had 4 difference scenarios:
+
+-   The long term state of the board after many dice rolls, with a strategy of leaving jail as soon as possible
+
+-   The long term state of the board after many dice rolls, with a strategy of staying in jail as long as possible
+
+-   The state of the board after 30 dice rolls, with a strategy of leaving jail as soon as possible
+
+-   The state of the board after 30 dice rolls, with a strategy of staying in jail as long as possible
+
+Where $\text{many dice rolls} \gg 30$.
+
+We will consider all cases, but I will mainly be looking at the first and second scenario.
+
+Below are the same simulation results seen in the first blog post. ***Note**: I will not be showing any more `R` code as it mainly is creating plots and wrangling data.*
+
+```{r}
+leave_long <-  readRDS(here::here("static/data/monopoly_leave_long.rds"))
+
+stay_long <- readRDS(here::here("static/data/monopoly_stay_long.rds"))
+
+leave_30 <-  readRDS(here::here("static/data/monopoly_leave_30.rds"))
+
+stay_30 <-  readRDS(here::here("static/data/monopoly_stay_30.rds"))
+```
+
+# Which sets are the most likely to be landed on?
+
+We can consider what sets are the best to own ,through aggregating by their group .
+
+```{r, echo=FALSE}
+monopoly_props %>% 
+  mutate( pct = leave_long ) %>% 
+  filter ( Color != "None" ) %>% 
+  group_by(Color) %>% 
+  summarise(  avg_pct = sum(pct),.groups = "drop" ) %>% 
+  ggplot(aes(x=avg_pct,y=reorder(Color,avg_pct) ,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::percent(avg_pct,accuracy = 0.01 ),hjust=-.1  ) ) +
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA) ,labels = scales::percent_format(accuracy = 1),limits = c(0,0.13))+
+  labs(title = "<span style= 'color:#AEC7D8'>**Stations**</span>, <span style = 'color: #E4901B'>**Oranges**</span>, and <span style = 'color: #E71A18'>**Red**</span> are the most likeliest to be landed on,<br>while the <span style = 'color: #946C6B'>**Browns**</span> and <span style = 'color: #1F4AE0'>**Dark Blue**</span> are the least likeliest",
+       subtitle = "Strategy: Many dice rolls, leave jail",
+       x="Chance of ending on per dice roll (%)",y="")+
+  theme_minimal()+
+  theme(panel.grid.major.y = element_blank(),
+        plot.title = element_markdown()  )
+  
+```
+
+From this we see that Orange is the best set to own based on the chances of ending a dice roll, with a 2.94% chance. This is followed closely by Red (2.92%) and Stations (2.84%). The worst three for chances are Brown (2.15%), Light Blue (2.30%), and Dark Blue (2.40%).
+
+It should not be surprising as the best squares are those ahead of the jail square on board position 10, but they are also behind the go-to-jail square in position 30. The least common squares are furthest from the board changing actions.
+
+Below is the same graph as before, but with different situation discussed earlier.
+
+```{r, echo=FALSE}
+
+p1 <- monopoly_props %>% 
+  mutate( pct = stay_long ) %>% 
+  filter ( Color != "None" ) %>% 
+  group_by(Color) %>% 
+  summarise(  avg_pct = sum(pct),.groups = "drop" ) %>% 
+  ggplot(aes(x=avg_pct,y=reorder(Color,avg_pct) ,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::percent(avg_pct,accuracy = 0.01 ),hjust=-.1  ),size=3 ) +
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA) ,labels = scales::percent_format(accuracy = 1),limits = c(0,0.13))+
+  labs(title = "Strategy: Many dice rolls, stay jail",
+       x="Chance of ending on per dice roll (%)",y="")+
+  theme_classic()+
+   theme(axis.ticks = element_blank(),
+         axis.line = element_blank(),
+         axis.text.x = element_blank())
+
+
+ p2 <- monopoly_props %>% 
+  mutate( pct = leave_30 ) %>% 
+  filter ( Color != "None" ) %>% 
+  group_by(Color) %>% 
+  summarise(  avg_pct =  sum(pct),.groups = "drop" ) %>% 
+  ggplot(aes(x=avg_pct,y=reorder(Color,avg_pct) ,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::percent(avg_pct,accuracy = 0.01 ),hjust=-.1  ),size=3  ) +
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA) ,labels = scales::percent_format(accuracy = 1),limits = c(0,0.13))+
+  labs(title = "Strategy: 30 dice rolls, leave jail",
+       x="Chance of ending on per dice roll (%)",y="")+
+  theme_classic()+
+   theme(axis.ticks = element_blank(),
+         axis.line = element_blank(),
+         axis.text.x = element_blank())
+ 
+ 
+ 
+ p3 <- monopoly_props %>% 
+  mutate( pct = stay_30 ) %>% 
+  filter ( Color != "None" ) %>% 
+  group_by(Color) %>% 
+  summarise(  avg_pct =  sum(pct),.groups = "drop" ) %>% 
+  ggplot(aes(x=avg_pct,y=reorder(Color,avg_pct) ,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::percent(avg_pct,accuracy = 0.01 ),hjust=-.1  ),size=3  ) +
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA) ,labels = scales::percent_format(accuracy = 1),limits = c(0,0.13))+
+  labs(title = "Strategy: 30 dice rolls, stay jail",
+       x="Chance of ending on per dice roll (%)",y="")+
+  theme_classic()+
+   theme(axis.ticks = element_blank(),
+         axis.line = element_blank(),
+         axis.text.x = element_blank())
+ 
+ p3 + p2 + p1 + patchwork::plot_layout(ncol = 2 , nrow = 2)
+```
+
+We see that largely speaking the results are same.
+
+# What are the best properties in terms of expected income?
+
+Once a property is bought by a player, they can charge rent on others who land on that property. Depending on if the player solely owns a property, owns properties of the same set, owns houses or hotels, that amount charged will differ.
+
+As we have the probabilities of a player landing on a property, we can work out the expect income by using the formula.
+
+$$
+\text{Expected income per dice roll} = \text{P(landing on square per dice roll)} \times \text{income}
+$$
+
+Note that for utilities, the expected income will be 7, as that's the average sum of two die, and for a set of utilities it would be $10*7=70$.
+
+## Expected income for base rent
+
+We first consider the expected income per dice roll for just the property itself. We can consider the additional rent increases later.
+
+```{r,fig.width=8, echo=FALSE}
+other_probs <- monopoly_props %>% 
+  mutate( prob = leave_long) %>% 
+  filter ( Color %in% c("Utilities","Station" ) ) %>% 
+  select(!starts_with( c("house","hotel") )) %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  mutate( rent_0 = case_when( Color == "Station" ~ station_1,
+                              TRUE ~ utility_1)  ) %>% 
+  transmute(Space,Name,Color,exp_income = rent_0*prob) 
+
+
+monopoly_props %>% 
+  mutate( exp_income = leave_long*house_0 ) %>% 
+  filter ( !Color %in% c("None","Utilities","Station" ) ) %>% 
+  select(!starts_with( c("station","utility") )) %>% 
+  bind_rows(other_probs  ) %>% 
+  ggplot(aes(x=exp_income,y=reorder(Name,exp_income) ,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::dollar(exp_income,prefix = "£")  ) , hjust=-.1,size=3 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),limits = c(0,1.45))+
+  labs(title = "<span style= 'color:#1F4AE0'>**Mayfair**</span> and <span style= 'color:#1F4AE0'>**Park Lane**</span> have the highest expected income per dice roll",
+       subtitle = "Strategy: Many dice rolls, leave jail, 0 houses",
+       x="Expected income per dice roll (£)",y="")+
+  theme_minimal()+
+  theme(panel.grid.major.y = element_blank(),
+        plot.title = element_markdown())
+
+```
+
+Generally speaking, we see that properties with higher rent tend to have higher expected income and almost looks like it follows the pattern of the boar itself. However there are a few differences. Vine Street (£0.49) has a slightly higher expected income than Fleet Street (£0.49), despite being in the "inferior" set. Moreover, Trafalgar Square (£0.64) is superior to all of Yellow's expected income.
+
+The stations also seem to provide a good chance at obtain steady income, though Liverpool Street Station (£0.61) seems to provide poor value when compared with other stations.
+
+We can also group by colour to see which has the highest expected income.
+
+```{r,echo=FALSE}
+monopoly_props %>% 
+  mutate( exp_income = leave_long*house_0 ) %>% 
+  filter ( !Color %in% c("None","Utilities","Station" ) ) %>% 
+  select(!starts_with( c("station","utility") )) %>% 
+  bind_rows(other_probs  ) %>% 
+  group_by(Color) %>% 
+  summarise(avg_exp_income = sum(exp_income),.groups="drop" ) %>% 
+    ggplot(aes(x=avg_exp_income,y=reorder(Color,avg_exp_income) ,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::dollar(avg_exp_income,prefix = "£")  ) , hjust=-.1,size=3 )+
+  scale_fill_manual(values = color_codes)+
+  scale_x_continuous(expand = c(0,NA),limits = c(0,3))+
+  labs(title = "The <span style = 'color:#AEC7D8'>**Station**</span> set has the best expected income, <span style= 'color:#946C6B'>**Brown**</span> the worst",
+       subtitle = "Strategy: Many dice rolls, leave jail, 0 houses",
+       x="Expected income per dice roll (£)",y="")+
+  theme_minimal()+
+  theme(panel.grid.major.y = element_blank(),
+        plot.title =  element_markdown())
+  
+```
+
+On average, we see that the Station set (£2.84) has the best highest expected income across it's properties, followed by Dark Blue (£2.08). The worst two are Brown (£0.13) and Utilities (£0.38) .
+
+We only considered the expected income when a player only owns a single property. We can extend the expected income to include the various upgrades such as having a full set, houses and hotels.
+
+```{r, echo=FALSE,fig.height=8,fig.align='center'}
+gg_expected_income <-  function(data){
+
+p1 <- monopoly_props %>% 
+  mutate(full_set = 2*house_0,
+         prob = data) %>% 
+  filter ( !Color %in% c("None","Utilities","Station" ) ) %>% 
+  pivot_longer(house_0:full_set) %>% 
+  na.omit() %>% 
+  mutate( exp_income = prob * value,
+          name =  factor(name, levels= c("house_0","full_set","house_1","house_2",
+                                         "house_3","house_4","hotel")),
+          name = recode_factor(name, "house_0" = "No Set","full_set" = "Full Set", "house_1"="1 House",
+                               "house_2"="2 Houses","house_3"="3 Houses","house_4"="4 Houses",
+                               "hotel"="Hotel")  ) %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=exp_income))+
+  geom_tile()+
+  #geom_text(aes(label= scales::dollar(exp_income),col=if_else(exp_income < 40,"white","black" )  )) +
+  geom_text(aes(label= round(exp_income,2),col=if_else(exp_income < 35,"white","black" )  )) +
+  scale_fill_viridis_c(limits =c(0,55))+
+  scale_color_identity()+
+  labs(subtitle = "Properties",
+       x="Type",y="",fill="Expected\nIncome (£)")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+
+p2 <- monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Station") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(station_1:station_4) %>% 
+  mutate(exp_income = prob*value ) %>% 
+  mutate( name =  str_remove_all(name,"station_") )%>% 
+    ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=exp_income))+
+  geom_tile()+
+    geom_text(aes(label= round(exp_income,2),col=if_else(exp_income < 35,"white","black" )  )) +
+  scale_fill_viridis_c(limits =c(0,55))+
+  scale_color_identity()+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+    labs(subtitle="Stations",
+       x="Number of Owned Stations",y="",fill="Expected\nIncome (£)")+
+    theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p3 <- monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Utilities") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(utility_1:utility_2) %>% 
+  mutate(exp_income = prob*value ) %>% 
+  mutate( name =  str_remove_all(name,"utility_") )%>% 
+    ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=exp_income))+
+  geom_tile()+
+    geom_text(aes(label= round(exp_income,2),col=if_else(exp_income < 35,"white","black" )  )) +
+  scale_fill_viridis_c(limits =c(0,55) )+
+  scale_color_identity()+
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+    labs(subtitle="Utilities",
+       x="Number of Owned Utilities",y="",fill="Expected\nIncome (£)")+
+    theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+
+return( p1 / (p2+p3) + plot_layout(heights = c(3, 1)) )
+
+}
+
+gg_expected_income(leave_long) + plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: Many rolls, leave jail")
+```
+
+The graph suggests that with more upgrades a property obtains, the higher the additional expected rent. Mayfair usually has the highest expected income for each type of property extension. Curiously, Trafalgar square seems to best punching above it's weight in terms of expected income.
+
+We can also group the expected income by set
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+
+gg_expected_income_set <- function(data){
+
+
+p2 <- monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Station") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(station_1:station_4) %>% 
+  mutate(exp_income = prob*value, 
+         name =  str_remove_all(name,"station_") )%>% 
+  group_by(Color,name) %>% 
+  summarise(avg_exp_income = sum(exp_income),.groups = "drop"  ) %>% 
+    ggplot(aes(x=name,y=Color ,fill=avg_exp_income))+
+  geom_tile()+
+    geom_text(aes(label= round(avg_exp_income,2),col=if_else(avg_exp_income < 35,"white","black" )  )) +
+  scale_fill_viridis_c(limits =c(0,100))+
+  scale_color_identity()+
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+    labs(
+       x="Number of Owned Stations",y="",fill="Expected\nIncome (£)")+
+    theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+
+p3 <- monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Utilities") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(utility_1:utility_2) %>% 
+  mutate(exp_income = prob*value ) %>% 
+  mutate( name =  str_remove_all(name,"utility_") )%>% 
+  group_by(Color,name) %>% 
+  summarise(avg_exp_income = sum(exp_income),.groups = "drop"  ) %>% 
+    ggplot(aes(x=name,y=Color ,fill=avg_exp_income))+
+  geom_tile()+
+    geom_text(aes(label= round(avg_exp_income,2),col=if_else(avg_exp_income < 30,"white","black" )  )) +
+  scale_fill_viridis_c(limits =c(0,100))+
+  scale_color_identity()+
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+    labs(
+       x="Number of Owned Utilities",y="",fill="Expected\nIncome (£)")+
+    theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p1 <- monopoly_props %>% 
+  mutate(full_set = 2*house_0,
+         prob = data) %>% 
+  filter ( !Color %in% c("None","Utilities","Station" ) ) %>% 
+  pivot_longer(house_0:full_set) %>% 
+  na.omit() %>% 
+  mutate( exp_income = prob * value,
+          name =  factor(name, levels= c("house_0","full_set","house_1","house_2",
+                                         "house_3","house_4","hotel")),
+          name = recode_factor(name, "house_0" = "No Set","full_set" = "Full Set", "house_1"="1 House",
+                               "house_2"="2 Houses","house_3"="3 Houses","house_4"="4 Houses",
+                               "hotel"="Hotel"),
+          Color = factor(Color, levels=c("Brown","Light Blue","Pink","Orange","Red",
+                                       "Yellow","Green","Dark Blue")  )) %>% 
+  group_by(Color,name) %>% 
+  summarise(avg_exp_income = sum(exp_income),.groups = "drop"  ) %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=avg_exp_income))+
+  geom_tile()+
+  geom_text(aes(label= round(avg_exp_income,2),col=if_else(avg_exp_income < 34,"white","black" )  )) +
+  scale_fill_viridis_c()+
+  scale_color_identity()+
+  labs(
+       x="",y="",fill="Expected\nIncome (£)")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+ p <-  p1 /(p2+p3)+plot_layout(heights=c(3,1))
+ 
+ return(p)
+}
+
+gg_expected_income_set(leave_long) +
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: Many rolls, stay jail")
+
+```
+
+The above graph shows that the Green set with hotels has the highest expected income. The Brown set is the worst when it comes to expected income.
+
+The biggest jump in income comes from jumping from two houses to three houses.
+
+## For other scenarios
+
+We can also produce a similar visualizations for the other scenarios
+
+I won't be interpreting the results. But how do it remains the same; the larger the expected income, the better the property.
+
+### For many rolls and staying in jail
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_expected_income(stay_long) +
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: Many rolls, stay jail")
+```
+
+And by income set,
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_expected_income_set(stay_long)+
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: Many rolls, stay jail")
+```
+
+### For 30 dice rolls and leaving jail
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_expected_income(leave_30) +
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: 30 dice rolls, leave jail")
+```
+
+And by income set,
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_expected_income_set(leave_30)+
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: 30 dice rolls rolls, leave jail")
+```
+
+### For 30 dice rolls and stay in jail
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_expected_income(stay_30) +
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: 30 dice rolls, stay jail")
+```
+
+And by income set,
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_expected_income_set(stay_30)+
+   plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: 30 dice rolls rolls, stay jail")
+```
+
+# Return on investment on properties
+
+While getting the property or set with the highest potential income may seem like a good idea, it does not take into account the costs required to obtain a property or reach a certain property level. A good indicator on whether something is of good value is by using the return on investment (ROI) metric. It basically measures how much money one can receive per amount spent.
+
+The ROI is defined as.
+
+$$
+\text{ROI} \text{ %} =\frac{\text{Expected income}}{\text{Cost}} \text{ %} 
+$$
+
+We can also look to see how quickly we can make back our investments, by considering the number of opponent dice rolls it takes to recoup our investments. We define the "time" it takes become profitable as:
+
+$$
+\text{Number of opposition rolls to be profitable}  = \left \lceil{\frac{\text{Cost}}{\text{Expected income}}}\right \rceil = \left \lceil \frac{1}{\text{ROI %}}*100  \right \rceil
+$$
+
+We take the ceiling as if the number of opposition rolls is some decimal, say 5.8 dice rolls, then it is not yet profitable on the 5th dice roll, but it will be on the 6th. So we will round up the number of opposition rolls.
+
+Let's look at which one give the best bang for buck.
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+props_groups <-  function(data){
+
+properties <- monopoly_props %>% 
+  mutate( full_set= 2*house_0  ,
+          prob =  data) %>% 
+  filter(!Color %in% c("None","Station","Utilities")  ) %>% 
+  select(where(~any(!is.na(.)))) %>%
+  group_by(Color) %>% 
+  mutate(set_cost = sum(Cost)) %>% 
+  ungroup() %>% 
+  pivot_longer(house_0:full_set) %>% 
+  mutate( exp_income  = prob*value,
+          total_cost = case_when( name == "house_0"  ~   Cost,
+                                  name == "full_set"  ~  Cost,
+                                  name == "house_1"  ~   Cost + house_cost,
+                                  name == "house_2" ~  Cost + 2*house_cost,
+                                  name == "house_3" ~  Cost + 3*house_cost,
+                                  name == "house_4" ~  Cost + 4*house_cost,
+                                  TRUE             ~  Cost + hotel_cost),
+          ROI = exp_income/total_cost*100,
+          name =  factor(name, levels= c("house_0","full_set","house_1","house_2",
+                                         "house_3","house_4","hotel")),
+          name = recode_factor(name, "house_0" = "No Set","full_set" = "Full Set", "house_1"="1 House",
+                               "house_2"="2 Houses","house_3"="3 Houses","house_4"="4 Houses",
+                               "hotel"="Hotel"),
+          rolls =  ceiling(1/(ROI/100)   ) 
+  )
+
+stations <-   monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Station") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(station_1:station_4) %>% 
+  mutate(exp_income = prob*value ,
+         name =  str_remove_all(name,"station_"),
+         ROI = exp_income/Cost*100,
+         rolls =  ceiling(1/(ROI/100)) 
+  )
+
+utilities <-  monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Utilities") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(utility_1:utility_2) %>% 
+  mutate(exp_income = prob*value,
+         name =  str_remove_all(name,"utility_"),
+         ROI = exp_income/Cost*100,
+         rolls =  ceiling(1/(ROI/100))
+  )
+
+return( list(properties,stations,utilities)   )
+}
+
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_ROI <-  function(data){
+ 
+p1 <- props_groups(data)[[1]] %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=ROI))+
+  geom_tile()+
+  geom_text(aes(label = round(ROI,2 ), col= if_else( ROI < 2,"white","black" )  )) +
+  scale_fill_viridis_c(option="B")+
+  scale_color_identity()+
+  labs(x="",y="",fill="ROI (%)")+
+  theme_classic()+
+    theme(axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+p2 <- props_groups(data)[[2]] %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=ROI))+
+  geom_tile()+
+  geom_text(aes(label = round(ROI,2 ), col= if_else( ROI < 2,"white","black" )  )) +
+  scale_fill_viridis_c(limits = c(0,4),option="B")+
+  scale_color_identity()+
+      scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+  labs(x="No. of stations",y="",fill="ROI (%)")+
+  theme_classic()+
+    theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p3 <- props_groups(data)[[3]] %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=ROI))+
+  geom_tile()+
+  geom_text(aes(label = round(ROI,2 ), col= if_else( ROI < 2,"white","black" )  )) +
+  scale_fill_viridis_c(limits = c(0,4),option="B")+
+  scale_color_identity()+
+      scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+  labs(x="No. of utilities",y="",fill="ROI (%)")+
+  theme_classic()+
+    theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p  <- p1 /(p2+p3)+plot_layout(heights=c(3,1))
+return(p)
+}
+
+
+gg_ROI(leave_long)+
+  plot_annotation(title = "Return on investment for properties",
+                  subtitle = "Strategy: Many rolls, leave jail")
+```
+
+According to the above chart, the best properties for return on investments are seen below:
+
+```{r,echo=FALSE}
+props_groups(leave_long)[[1]] %>% 
+  bind_rows(  props_groups(leave_long)[[2]],props_groups(leave_long)[[3]]  ) %>% 
+  select(Space,Color,Name,name,ROI) %>% 
+  arrange(-ROI) %>% 
+  slice_head(n=10) %>% 
+  kableExtra::kbl(col.names = c("Space","Group","Name","Type","ROI (%)"),align = "ccccc",digits = 2) %>% 
+kableExtra::kable_styling(bootstrap_options = c("striped","condensed"),full_width = F) 
+
+```
+
+The Orange properties tend to have the highest ROI.
+
+The worst are the properties not part of a set. The utilities by themselves are useless.
+
+While ROI is a decent metric to tell if we something is a good deal or not, it does not tell us how long it will take to get good returns. By considering the number of opposition rolls it takes to turn a profit, we can obtain a good estimate for when we will break even.
+
+```{r, echo=FALSE, fig.height=8, fig.width=8 }
+
+gg_rolls <-  function(data){
+
+p1 <- props_groups(data)[[1]]  %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=rolls))+
+  geom_tile()+
+  geom_text(aes(label = round(rolls,2 ), col= if_else( rolls > 1000,"white","black" )  )) +
+  scale_fill_viridis_c(direction = -1,option="A")+
+  scale_color_identity()+
+  labs(x="",y="",fill="Number of\nopposition rolls")+
+  theme_classic()+
+    theme(axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+p2 <- props_groups(data)[[2]] %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=rolls))+
+  geom_tile()+
+  geom_text(aes(label = round(rolls,2 ), col= if_else( rolls > 1000,"white","black" )  )) +
+  scale_fill_viridis_c(direction = -1,limits = c(0,1400),option="A")+
+  scale_color_identity()+
+      scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+  labs(x="No. of Stations",y="")+
+  theme_classic()+
+    theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p3 <- props_groups(data)[[3]] %>% 
+  ggplot(aes(x=name,y=reorder(Name,-Space) ,fill=rolls))+
+  geom_tile()+
+  geom_text(aes(label = round(rolls,2 ), col= if_else( rolls > 1000,"white","black" )  )) +
+  scale_fill_viridis_c(direction = -1,limits = c(0,1400),option="A")+
+  scale_color_identity()+
+      scale_y_discrete(labels = function(x) str_wrap(x, width = 15))+
+  labs(x="No. of utilities",y="")+
+  theme_classic()+
+    theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p <- p1 /(p2+p3)+plot_layout(heights=c(3,1))
+return(p)
+}
+
+gg_rolls(leave_long)+  
+  plot_annotation(title="Number of opposition rolls required to generate profit",
+                  subtitle =  "Strategy: many dice rolls, leave jail " )
+```
+
+The above graphs shows the number of rolls needed to break even. The worst is Old Kent Road in no set which needs about 1,410 dice rolls before it generates a profit.
+
+The table below shows properties and types that are the quickest at generating profit.
+
+```{r, echo=FALSE}
+props_groups(leave_long)[[1]] %>% 
+  bind_rows(  props_groups(leave_long)[[2]],props_groups(leave_long)[[3]]  ) %>% 
+  select(Space,Color,Name,name,rolls) %>% 
+  arrange(rolls) %>% 
+  slice_head(n=10) %>% 
+  knitr::kable(col.names = c("Space","Group","Name","Type","Opposition Rolls"),align = "ccccc") %>% 
+kableExtra::kable_styling(bootstrap_options = c("striped","condensed"),full_width = F) 
+```
+
+The most common group that appears are the Oranges, followed by the Light Blue and Dark Blue groups. It also suggests placing hotels on properties generates profits the fastest.
+
+Vine street also appears the most in the top 10 list; they are the best property to generate profit.
+
+# Property sets ROI
+
+We can group the properties by their sets to see the average performance.
+
+```{r, echo=FALSE}
+gg_sets <- function(data){
+  
+l1 <-   monopoly_props %>% 
+  mutate( full_set= 2*house_0  ,
+          prob =  data) %>% 
+  filter(!Color %in% c("None","Station","Utilities")  ) %>% 
+  select(where(~any(!is.na(.)))) %>%
+  pivot_longer(house_0:full_set) %>% 
+  mutate( exp_income  = prob*value,
+          total_cost = case_when( name == "house_0"  ~   Cost,
+                                  name == "full_set"  ~  Cost,
+                                  name == "house_1"  ~   Cost + house_cost,
+                                  name == "house_2" ~  Cost + 2*house_cost,
+                                  name == "house_3" ~  Cost + 3*house_cost,
+                                  name == "house_4" ~  Cost + 4*house_cost,
+                                  TRUE             ~  Cost + hotel_cost)) %>% 
+  group_by(Color,name) %>% 
+  mutate(  total_exp_income = sum(exp_income),
+                group_total_cost   =   sum(total_cost),    
+          ROI = total_exp_income/group_total_cost*100,
+          name =  factor(name, levels= c("house_0","full_set","house_1","house_2",
+                                         "house_3","house_4","hotel")),
+          name = recode_factor(name, "house_0" = "No Set","full_set" = "Full Set", "house_1"="1 House",
+                               "house_2"="2 Houses","house_3"="3 Houses","house_4"="4 Houses",
+                               "hotel"="Hotel"),
+          rolls =  ceiling(1/(ROI/100)   ) 
+  )%>% 
+  mutate(Color = factor(Color, levels=c("Brown","Light Blue","Pink","Orange","Red",
+                                        "Yellow","Green","Dark Blue")  ))
+  
+  
+l2 <-  monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Station") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(station_1:station_4) %>% 
+  mutate(exp_income = prob*value 
+  ) %>% 
+  group_by(Color,name) %>% 
+  mutate(  total_exp_income = sum(exp_income),
+           name =  str_remove_all(name,"station_"),
+           total_cost = Cost*as.numeric(name),
+           ROI = total_exp_income/total_cost*100,
+           rolls =  ceiling(1/(ROI/100)  )) 
+  
+  
+l3 <- monopoly_props %>% 
+  mutate( prob = data) %>% 
+  filter(Color=="Utilities") %>% 
+  select(where(~any(!is.na(.)))) %>% 
+  pivot_longer(utility_1:utility_2) %>% 
+  mutate(exp_income = prob*value 
+  ) %>% 
+  group_by(Color,name) %>% 
+  mutate(  total_exp_income = sum(exp_income),
+           name =  str_remove_all(name,"utility_"),
+           total_cost = Cost*as.numeric(name),
+           ROI = total_exp_income/total_cost*100,
+           rolls =  ceiling(1/(ROI/100)  ))
+    
+ return(list(l1,l2,l3)  )
+}
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+
+gg_ROI_set <-  function(data){
+
+p1 <-  gg_sets(data)[[1]] %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=ROI))+
+  geom_tile()+
+  geom_text(aes(label= round(ROI,2),col= if_else( ROI < 2,"white","black" ) ) )+
+  scale_fill_viridis_c(option="B",limits=c(0,4.5))+
+  scale_color_identity()+
+  labs(x="",y="",
+       fill = "ROI %")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+
+p2 <- gg_sets(data)[[2]] %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=ROI))+
+  geom_tile()+
+  geom_text(aes(label= round(ROI,2),col= if_else( ROI < 2,"white","black" ) ) )+
+  scale_fill_viridis_c(option="B",limits=c(0,4.5))+
+  scale_color_identity()+
+  labs(x="# of Stations",y="",
+       fill = "")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p3 <- gg_sets(data)[[3]] %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=ROI))+
+  geom_tile()+
+  geom_text(aes(label= round(ROI,2),col= if_else( ROI < 2,"white","black" ) ) )+
+  scale_fill_viridis_c(option="B",limits=c(0,4.5))+
+  scale_color_identity()+
+  labs(x="# of Utilities",y="",
+       fill = "")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+  p <- p1 /(p2+p3)+plot_layout(heights=c(3,1))
+ return(p)
+  
+} 
+
+gg_ROI_set(leave_long)+
+  plot_annotation(title = "Return on investment for properties set",
+                  subtitle = "Strategy: Many rolls, leave jail")
+
+```
+
+We see that the Orange set with hotels is the set with the highest ROI % (4.14%) . Curiously, Light Blue has the second highest ROI % for hotels (3.66%).
+
+We can also observe the number of opposition rolls required to start generating a profit.
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+
+gg_rolls_set <-  function(data){
+  
+  
+p1 <-  gg_sets(data)[[1]] %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=rolls))+
+  geom_tile()+
+  geom_text(aes(label= rolls,col= if_else( rolls > 400 ,"white","black" ) ) )+
+  scale_fill_viridis_c(option="A",direction = -1,limits = c(0,1100))+
+  scale_color_identity()+
+  labs(x="",y="",
+       fill = "Number of\nopposition rolls")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+
+p2 <- gg_sets(data)[[2]] %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=rolls))+
+  geom_tile()+
+  geom_text(aes(label= rolls,col= if_else( rolls > 400 ,"white","black" ) ) )+
+  scale_fill_viridis_c(option="A",direction = -1,limits = c(0,1100))+
+  scale_color_identity()+
+  labs(x="# of Stations",y="",
+       fill = "")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+p3 <- gg_sets(data)[[3]] %>% 
+  ggplot(aes(x=name,y= fct_rev(Color) ,fill=rolls))+
+  geom_tile()+
+  geom_text(aes(label= rolls,col= if_else( rolls > 400 ,"white","black" ) ) )+
+  scale_fill_viridis_c(option="A",direction = -1,limits = c(0,1100))+
+  scale_color_identity()+
+  labs(x="# of Utilities",y="",
+       fill = "")+
+  theme_classic()+
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.position = "none")
+
+  p <- p1 /(p2+p3)+plot_layout(heights=c(3,1))
+ return(p)
+  
+} 
+
+gg_rolls_set(leave_long)
+```
+
+We see that investing in 3 houses to hotels generates faster returns than the other upgrades.
+
+```{r ,echo=FALSE,fig.width=9}
+gg_sets(leave_long)[[1]] %>% 
+  select(Color,name,ROI) %>% 
+  unique() %>% 
+  ggplot(aes(x=name,y=ROI,col=Color,group=Color))+
+  geom_line(size=1)+
+  geom_point(size=4)+
+  scale_color_manual(values=color_codes)+
+  scale_y_continuous(label=scales::percent_format(scale=1,accuracy = 1))+
+  labs(title="Most property sets do not see an improvement in ROI after building 3 houses.<br>However, some like <span style = 'color: #E4901B'>**Orange**</span> or <span style = 'color: #79D7D8'>**Light Blue**</span>  yield better returns, while <span style = 'color: #946C6B'>**Brown**</span> remains poor value",
+       subtitle = "ROI (%) for property sets",
+       x="Property Type",y="ROI (%)")+
+  theme_bw()+
+  theme(legend.position = "top",
+        plot.title = ggtext::element_markdown()
+        )
+
+
+color_codes <-  c("None"="grey40",
+                  "Brown" = "#946C6B",
+                  "Station"="#AEC7D8",#   "#E3E4E5",
+                  "Light Blue"= "#79D7D8",
+                  "Pink" ="#ED63DF",# "#E51AD0",
+                  "Utilities" = "#4CB45C",# "#7FCA8B",
+                  "Orange" = "#E4901B",
+                  "Red"="#E71A18",
+                  "Yellow" = "#FFDC00",
+                  "Green" = "#097F09",
+                  "Dark Blue" = "#1F4AE0"
+                  )
+
+
+
+```
+
+The above graphs shows how the ROI % changes by property type for different property sets. We see that, past 3 houses, Oranges are the best group and are the best for Hotel. Light Blue is surprisingly second for hotels, perhaps this due to the fact how cheap those properties are and how quickly it is to build houses and hotels.
+
+Largely speaking, most sets do not improve in value for ROI past 3 houses - these are Red, Dark Blue, Yellow and Green.
+
+Brown should be avoided as it does not generate great returns. However in the game, there are only a finite number of houses, so using the Browns to restrict the number of houses for other players might be a good strategy.
+
+```{r,echo=FALSE,fig.width=9}
+gg_sets(leave_long)[[1]] %>% 
+    select(Color,name,rolls) %>% 
+  unique() %>% 
+  ggplot(aes(x=Color,y=rolls,fill=Color))+
+  geom_col(show.legend = FALSE)+
+  facet_wrap(.~name,nrow=1)+
+  scale_fill_manual(values= color_codes)+
+  labs(title="After three houses, the number of opposition rolls needed to generate profit remains constant.<br><span style = 'color: #946C6B'>**Brown**</span> requires more rolls to generate profit than any other Group",subtitle = "Number of opposition rolls required to generate profit" ,
+       x="Group",y="Number of opposition rolls")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=90),
+        panel.grid.major.x = element_blank(),
+        plot.title = ggtext::element_markdown())
+```
+
+The above graph shows the number of opposition rolls required to generate profit. We see that as the property set becomes more developed, the number of opposition rolls needed to generate a profit reaches a constant value. For all sets other than Brown, this constant number is about 30-40 rolls.
+
+For Brown, it requires significantly more oppositions rolls before generat profit. It only become competitive with other sets when it has a hotel built.
+
+# Other situations
+
+For the other situations we can view the charts.
+
+I won't be interpreting these, but they it follows the same process as before. The higher the ROI %, the better a property/property set is. The lower the number of opposition rolls, the better the property/property set is.
+
+## For many dice rolls and staying at jail
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_ROI(stay_long)+
+  plot_annotation(title = "Return on investment for properties",
+                  subtitle = "Strategy: Many rolls, stay in jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_ROI_set(stay_long)+
+  plot_annotation(title = "Return on investment for property groups",
+                  subtitle = "Strategy: Many rolls, stay in jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_rolls(stay_long)+
+  plot_annotation(title = "Number of Opposition rolls required to generate profit for property",
+                  subtitle = "Strategy: Many rolls, stay in jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_rolls_set(stay_long)+
+  plot_annotation(title = "Number of Opposition rolls required to generate profit for property set",
+                  subtitle = "Strategy: Many rolls, stay in jail")
+```
+
+## For 30 dice rolls leave jail
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_ROI(leave_30)+
+  plot_annotation(title = "Return on investment for properties",
+                  subtitle = "Strategy: 30 rolls, leave jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_ROI_set(leave_30)+
+    plot_annotation(title = "Return on investment for property groups",
+                  subtitle = "Strategy: 30 rolls, leave jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_rolls(leave_30)+
+  plot_annotation(title = "Number of Opposition rolls required to generate profit for property",
+                  subtitle = "Strategy: 30 rolls, leave jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_rolls_set(leave_30)+
+  plot_annotation(title = "Number of Opposition rolls required to generate profit for property set",
+                  subtitle = "Strategy: 30 rolls, leave jail")
+```
+
+## For 30 dice rolls, stay in jail
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_ROI(stay_30) + 
+  plot_annotation(title = "Return on investment for properties",
+                  subtitle = "Strategy: 30 rolls, stay in jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_ROI_set(stay_30) +
+  plot_annotation(title = "Return on investment for property groups",
+                  subtitle = "Strategy: 30 rolls, stay in jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
+gg_rolls(stay_30)+
+  plot_annotation(title = "Number of Opposition rolls required to generate profit for property set",
+                  subtitle = "Strategy: 30 rolls, stay in jail")
+```
+
+```{r, echo=FALSE,fig.align='center',fig.height=4}
+gg_rolls_set(stay_30)+
+  plot_annotation(title = "Number of Opposition rolls required to generate profit for property set",
+                  subtitle = "Strategy: 30 rolls, stay in jail")
+```
+
+# Number of players
+
+From the 2017 edition onwards, the maximum number of players in a game of monopoly is 8[\^1]. This means there are 7 opponents in the game. The minimin is 2, meaning there is 1 opponent.
+
+[\^1] :
+
+We can calculate the expected income for a turn based on the number of opponents in the game. This different from the number of dice rolls. To calculate the number of expected dice rolls per player turn, we can simply add up the possibilities as follows:
+
+$$
+\begin{align}
+\text{Expected # dice rolls per turn} &= \bigg(\overbrace{\frac{5}{6} \times 1  }^{\text{1 single, 0 doubles}}\bigg)
++ \bigg( \overbrace{\frac{1}{6} \times \frac{5}{6} \times 2}^{\text{1 single, 1 double}} \bigg) 
++ \bigg( \overbrace{\frac{1}{6^2} \times \frac{5}{6} \times 3}^{\text{2 singles, 1 double}} \bigg)
++ \bigg( \overbrace{\frac{1}{6^3} \times 3}^{\text{0 singles, 3 doubles}} \bigg) \\
+&= \frac{43}{36}\\
+&\approx 1.19
+\end{align}
+$$
+
+Thus we see that a player can expect roll the dice 1.19 times a turn.
+
+We can work out how many total turns it will take for a set to pay itself off. We can calculate this as
+
+$$
+\text{Number of turns} = \frac{\text{# Opposition rolls to generate profit}}{\text{Expected # dice rolls per turn} \times \text{# of players}}
+$$
+
+We can see how quickly a set will take to start to generate income based based on the number of turns by looking at the interactive table below.
+
+```{r,out.height=8,out.width=8,echo=FALSE}
+gg_sets(leave_long)[[1]] %>% 
+  select(Color,name,rolls) %>% 
+  unique() %>% 
+ crossing(players = 1:7) %>% 
+  mutate(total_player_rolls_per_turn = players*(43/36),
+         avg_number_of_turns = round(rolls/total_player_rolls_per_turn)) %>% 
+  select(!c(rolls,total_player_rolls_per_turn)) %>% 
+  rename( "Property Type" = name,
+          "Group"=Color) %>% 
+  mutate( players = as.factor(str_c(players,"Opponents",sep=" ")  ),
+          Group = factor(Group) )%>% 
+  #arrange(avg_number_of_turns) %>% 
+  pivot_wider(names_from = players ,values_from = avg_number_of_turns) %>% 
+DT::datatable(filter = "top")
+```
+
+The table shows how many players turns it will take for a set and proprty type to pay itself of depending on the number of players read off the number of
+
+The way to use it would be to select a group and property type and then read off the number of turns it would take to pay off the investment.
+
+# Earning over competitor rolls
+
+```{r,echo=FALSE}
+gg_sets(leave_long)[[1]] %>% 
+  select(Color,name,total_exp_income,group_total_cost) %>% 
+  unique() %>% 
+  filter(name != "No Set") %>% 
+  crossing( n_rolls = seq(0,500,10)  ) %>% 
+  mutate(  total_revenue = n_rolls*total_exp_income -group_total_cost ) %>% 
+  ggplot(aes(x=n_rolls,y=total_revenue,col=Color))+
+  geom_line(size=1)+
+  scale_color_manual(values = color_codes)+
+  scale_y_continuous(labels=scales::dollar_format(prefix = "£"))+
+  facet_wrap(.~name,scales = "free_y",nrow=2)+
+  labs(title = "Initially, <span style= 'color:#1F4AE0'>**Dark Blue**</span> sets have the best profit,<br>but <span style= 'color:#097F09'>**Green**</span> wins with further developed property",
+       subtitle="Total profit over many dice rolls",x="# of rolls",y="Profit (£)")+
+  theme_bw()+
+  geom_hline(yintercept = 0)+
+  theme(legend.position = "none",
+        panel.grid.minor = element_blank(),
+       plot.title =  element_markdown())
+```
+
+The above graph shows the expected profit after several dice rolls. When part of a full set, Dark Blue gives the best long term expected income, however has the set becomes more developed, Green becomes the superior set.
+
+# Conclusion
+
+Overall when looking at the the result of many dice rolls, with the strategy of leaving jail we can obtain the following conclusions:
+
+*(You can draw similar results for the different scenarios by looking at the graphs)*
+
+For expected income per dice roll by property:
+
+-   The properties with the highest expected income are: Mayfair (£1.31), Park Lane (£0.76), and Bond Street (£0.70).
+
+-   For hotels, and houses, it's: Mayfair w/ Hotel (£52.53), Mayfair w/ 4 houses (£44.65), Mayfair w/ 3 Houses (£36.77), and Trafalgar Square w/ Hotel (£35.06)
+
+For expected income per dice roll by property set:
+
+-   The best property groups by expected outcome are: Dark Blue (£2.08), Green (£2.07), and Yellow (£2.07)
+
+-   For hotels and houses: Green w/ Hotel (£102.26), Red w/ Hotel (£93.43), Yellow w/ (£92.87)
+
+For the best property for in terms of ROI %:
+
+-   For the base level: Mayfair (0.44%), Trafalgar Square (0.27%), and Vine Street (0.22%)
+
+-   For hotels and houses: Vine Street w/ Hotel (4.41%), Vine Street w/ 3 Houses (4.12%), and Marlborough Street w/ Hotel (4.09%).
+
+For the best property sets in terms of ROI %:
+
+-   For the base level: Dark Blue (0.28%) and Red (0.24%)
+
+-   For hotels and houses: Orange w/ Hotel (4.14%), Orange w/ 4 Houses (3.84%), and Light Blue (3.66%)
+
+For most property sets, the ROI % does not improve after 3 houses. The exceptions are: Orange, Light Blue, Pink and Brown.
+
+After 3 houses have been developed, the number of opposition rolls required to pay off the cost generally remains constant.
+
+In the long run, after many dice rolls, the Green set generates the highest profit.
+
+
+The major takeaway is that the best set to aim for in terms of ROI is Orange, in terms of expected income it's Green. If you have a set, you should aim to build 3 houses as it provides the ROI on average.
+
+```{r}
+sessionInfo()
+```
