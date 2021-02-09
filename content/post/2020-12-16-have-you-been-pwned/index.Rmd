@@ -10,7 +10,7 @@ topics: []
 ---
 
 <p align='center'>
-<img src="/images/cybersec.jpg" width="800" height="500">
+<img src="/images/cybersec.jpeg" width="800" height="500">
 </p>
 
 
