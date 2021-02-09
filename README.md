@@ -1,6 +1,6 @@
 # PersonalWebsite
 
-**Site**: https://gk-blog.netlify.app/
+**Site**: https://gurpreetkblog.netlify.app/
 
 Repo for personal wesbite
 
