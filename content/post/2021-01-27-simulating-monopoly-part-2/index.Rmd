@@ -9,7 +9,7 @@ description: ''
 topics: []
 ---
 
-This is the second part in a two part series of looking at the game monopoly. If you haven't read part one, then click here to read the post. I will now assume you are familiar with monopoly and how the simulation was built.
+This is the second part in a two part series of looking at the game monopoly. If you haven't read part one, then click [here](https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/) to read the post. I will now assume you are familiar with monopoly and how the simulation was built.
 
 Previously we built a simulation of Monopoly and found that the most likeliest properties a player ends a dice roll on, that are also purchasable are: Trafalgar Square, Vine Street, and Stations.
 
