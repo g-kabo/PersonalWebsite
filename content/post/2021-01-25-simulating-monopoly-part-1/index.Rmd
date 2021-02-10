@@ -39,10 +39,10 @@ names(board_space) <- monopoly_props$Name
 
 color_codes <-  c("None"="grey40",
                   "Brown" = "#946C6B",
-                  "Station"="#AEC7D8",#   "#E3E4E5",
+                  "Station"="#AEC7D8",
                   "Light Blue"= "#79D7D8",
-                  "Pink" ="#ED63DF",# "#E51AD0",
-                  "Utilities" = "#4CB45C",# "#7FCA8B",
+                  "Pink" ="#ED63DF",
+                  "Utilities" = "#4CB45C",
                   "Orange" = "#E4901B",
                   "Red"="#E71A18",
                   "Yellow" = "#FFDC00",
