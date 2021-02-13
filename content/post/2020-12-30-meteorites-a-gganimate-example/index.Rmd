@@ -4,11 +4,11 @@ author: ''
 date: '2020-12-30'
 slug: []
 categories: []
-tags: []
+tags:
+  - Tidy Tuesday
 description: ''
 topics: []
 ---
-
 
 <p align='center'>
 <img src="/images/meteor.jpeg" width="800" height="500">
@@ -23,8 +23,6 @@ First we will quickly discuss the differences between a meteoroid, meteor, meteo
 * **Meteors** are meteoroids that enter the Earth's atmosphere and burn up. This can produce meteor showers. These are usually objects that we see with a tail in the sky.
 
 * A **meteorite** is a meteor that has survived the Earth's atmosphere and landed on the ground.
-
-
 
 ```{r, message=FALSE}
 library(tidyverse)

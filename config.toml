@@ -39,9 +39,15 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
     identifier = "post"
     url = "/post/"
   [[menu.main]]
+    name = "Posts by tag"
+    pre = "<i class='fa fa-tags fa-fw'></i>"
+    weight = 3
+    identifier = "tags"
+    url = "/tags/"   
+  [[menu.main]]
     name = "About"
     pre = "<i class='fa fa-user fa-fw'></i>"
-    weight = 3
+    weight = 4
     identifier = "about"
     url = "/about/"
   #[[menu.main]]
@@ -49,6 +55,7 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
    # pre = "<i class='fa fa-phone fa-fw'></i>"
    # weight = 4
    # url = "/contact/"
+
 
 [social]
   # Link your social networking accouns to the side menu
