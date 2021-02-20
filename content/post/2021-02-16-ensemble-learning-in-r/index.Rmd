@@ -6,7 +6,7 @@ tags:
   - data modelling
 ---
 
-Today I will create an ensemble of multiple learning algorithms, and try to see if they produce a better fit to the data than if we were to use just one machine learning model.
+Today we will create an ensemble of multiple learning algorithms, and try to see if they produce a better fit to the data than if we were to use just one machine learning model.
 
 We will use the `stacks` package from the `tidymodels` ecosystem to accomplish this, and the data we will be using is `credit_data` from the `modeldata` package. 
 
