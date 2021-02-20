@@ -1,0 +1,565 @@
+---
+title: Ensemble Learning in R
+author: ''
+date: '2021-02-16'
+tags:
+  - data modelling
+---
+
+<script src="index_files/header-attrs/header-attrs.js"></script>
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+<script src="index_files/kePrint/kePrint.js"></script>
+<link href="index_files/lightable/lightable.css" rel="stylesheet" />
+<link href="index_files/bsTable/bootstrapTable.min.css" rel="stylesheet" />
+<script src="index_files/bsTable/bootstrapTable.js"></script>
+
+
+<p>Today I will create an ensemble of multiple learning algorithms, and try to see if they produce a better fit to the data than if we were to use just one machine learning model.</p>
+<p>We will use the <code>stacks</code> package from the <code>tidymodels</code> ecosystem to accomplish this, and the data we will be using is <code>credit_data</code> from the <code>modeldata</code> package.</p>
+<pre class="r"><code>library(tidyverse)
+
+data(&quot;credit_data&quot;,package = &quot;modeldata&quot;)
+
+credit_data &lt;- credit_data %&gt;% 
+ na.omit()
+
+options(kableExtra.html.bsTable = TRUE )
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)</code></pre>
+<p>The outcome variable in the <code>credit_data</code> dataset is the <code>Status</code> variable which is a factor with two levels, <code>good</code> or <code>bad</code> which denotes the credit status of an individual. The dataset contains the following information.</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Variable
+</th>
+<th style="text-align:left;">
+Type
+</th>
+<th style="text-align:left;">
+Description
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Status
+</td>
+<td style="text-align:left;">
+<code>factor</code>
+</td>
+<td style="text-align:left;">
+Credit Status
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Seniority
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Job seniority (years)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Home
+</td>
+<td style="text-align:left;">
+<code>factor</code>
+</td>
+<td style="text-align:left;">
+Type of home ownership
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Time
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Time of requested loan
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Age
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Client’s age
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Marital
+</td>
+<td style="text-align:left;">
+<code>factor</code>
+</td>
+<td style="text-align:left;">
+Marital status
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Records
+</td>
+<td style="text-align:left;">
+<code>factor</code>
+</td>
+<td style="text-align:left;">
+Existence of records
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Jon
+</td>
+<td style="text-align:left;">
+<code>factor</code>
+</td>
+<td style="text-align:left;">
+Type of job
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Expenses
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Amount of expenses
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Income
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Amount of income
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Assets
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Amount of assets
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Debt
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Amount of debt
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Amount
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Amount requested of loan
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Price
+</td>
+<td style="text-align:left;">
+<code>int</code>
+</td>
+<td style="text-align:left;">
+Price of good
+</td>
+</tr>
+</tbody>
+</table>
+<div id="building-models" class="section level1">
+<h1>Building models</h1>
+<p>We will use a variety of learning algorithms to best predict the outcome.</p>
+<ul>
+<li><p>Logistic regression</p></li>
+<li><p>Random Forest</p></li>
+<li><p>Support Vector Machines</p></li>
+</ul>
+<p>Each of these models will have various hyperparameters that need to be tuned. By bundling all these models in an ensemble, all the stated model configurations will be considered and the final ensemble model will pick the best models out of these.</p>
+<pre class="r"><code>library(tidymodels)
+library(themis)
+library(stacks)
+
+set.seed(135)
+credit_split &lt;-  initial_split(credit_data,strata = Status)
+
+credit_train = training(credit_split)
+credit_test = testing(credit_split)
+
+set.seed(123)
+folds &lt;-  vfold_cv(credit_train,v=5,strata = Status)
+ctrl_grid &lt;-  control_stack_grid()
+ctrl_resamples &lt;- control_stack_resamples() </code></pre>
+<div id="logistic-model" class="section level2">
+<h2>Logistic model</h2>
+<div id="simple-logistic-model" class="section level3">
+<h3>Simple Logistic Model</h3>
+<p>Let create a simple logistic model</p>
+<pre class="r"><code>credit_simple_lgt_rec &lt;-recipe(Status~.,data=credit_train) %&gt;% 
+  step_rm(&quot;Time&quot;) %&gt;% 
+  step_dummy(all_nominal(),-all_outcomes())
+  
+simple_lgst_mod &lt;-  logistic_reg() %&gt;% 
+  set_engine(&quot;glm&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;)
+  
+simple_lgst_wf &lt;-  workflow() %&gt;%
+    add_model(simple_lgst_mod) %&gt;%
+    add_recipe(credit_simple_lgt_rec)
+
+simpled_lgst_res &lt;- fit_resamples(simple_lgst_wf,
+            resamples = folds,
+            control = ctrl_resamples)</code></pre>
+</div>
+<div id="more-complex-logistic-regression-model" class="section level3">
+<h3>More complex logistic regression model</h3>
+<p>Let’s credit a more complex logistic regression model with more feature engineering and use a varying value for the penalty <span class="math inline">\(\lambda\)</span> and mixture <span class="math inline">\(\alpha\)</span>.</p>
+<pre class="r"><code>complex_lgt_rec &lt;-  recipe(Status~.,data=credit_train) %&gt;% 
+  step_rm(&quot;Time&quot;) %&gt;% 
+  step_YeoJohnson(all_numeric()) %&gt;% 
+  step_other( Marital, threshold = 0.05, other = &quot;Other marital&quot;  ) %&gt;%
+  step_other( Home, threshold = 0.1, other = &quot;Other home&quot;  ) %&gt;% 
+  step_relevel(Marital,ref_level = &quot;Other marital&quot;) %&gt;% 
+  step_relevel(Home, ref_level = &quot;Other home&quot;) %&gt;% 
+  step_dummy(all_nominal() , -all_outcomes() ) %&gt;% 
+  step_normalize(all_numeric()) %&gt;% 
+  step_zv(all_predictors()) %&gt;%
+  step_smote(Status,skip = TRUE)
+
+logistic_mod &lt;-  logistic_reg(penalty = tune(),mixture = tune())  %&gt;% 
+  set_engine(&quot;glmnet&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;)
+  
+lgst_wf &lt;-  workflow() %&gt;%
+    add_model(logistic_mod) %&gt;%
+    add_recipe(complex_lgt_rec)
+
+set.seed(123)
+grid_vals &lt;- grid_max_entropy(penalty(),mixture(),size=5)
+
+complex_lgst_res &lt;- tune_grid(lgst_wf,
+            resamples = folds,
+            grid=  grid_vals,
+            control = ctrl_grid)</code></pre>
+</div>
+</div>
+<div id="random-forest" class="section level2">
+<h2>Random Forest</h2>
+<p>Let’s look at random forest model</p>
+<pre class="r"><code>rand_forest_mod &lt;- 
+  rand_forest(mtry = tune(),min_n = tune(),trees = 500) %&gt;%
+  set_mode(&quot;classification&quot;) %&gt;%
+  set_engine(&quot;ranger&quot;)
+
+credit_bagged_rec &lt;-  recipe(Status~.,data=credit_train) %&gt;% 
+  step_rm(&quot;Time&quot;)
+
+rand_forest_wf &lt;-   workflow() %&gt;%
+  add_recipe(credit_bagged_rec) %&gt;%
+  add_model(rand_forest_mod)
+
+set.seed(123)
+rand_fr_grid &lt;-  grid_max_entropy(mtry(range = c(2L,6L)),min_n(),size=10 )
+
+rand_forest_res &lt;- tune_grid(object = rand_forest_wf, 
+                             resamples = folds,
+                             grid = rand_fr_grid,
+                             control = ctrl_grid)</code></pre>
+</div>
+<div id="svm" class="section level2">
+<h2>SVM</h2>
+<p>Let’s use a Support Vector Machine Model, we will use a radial basis kernel and a polynomial kernel.</p>
+<div id="radial-basis-functions" class="section level3">
+<h3>Radial Basis Functions</h3>
+<pre class="r"><code>svm_rbf_mod &lt;- svm_rbf(cost=tune(),rbf_sigma =tune()) %&gt;% 
+  set_engine(&quot;kernlab&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;) 
+
+svm_rec &lt;- recipe(Status~.,data=credit_train) %&gt;% 
+  step_rm(&quot;Time&quot;) %&gt;% 
+  step_dummy(all_nominal(),-all_outcomes()) %&gt;%
+  step_zv(all_predictors()) %&gt;%
+  step_corr(all_predictors(), skip = TRUE,) %&gt;%
+  step_normalize(all_numeric())
+
+svm_rbf_wflow &lt;- workflow() %&gt;% 
+  add_model(svm_rbf_mod ) %&gt;%
+  add_recipe(svm_rec)
+
+set.seed(123)
+svm_rbf_grid &lt;-  grid_max_entropy(cost(),rbf_sigma(),size=6   )
+
+svm_rbf_res &lt;- tune_grid(svm_rbf_wflow, 
+                      grid = svm_rbf_grid,
+                     resamples = folds,
+                     control = ctrl_grid)</code></pre>
+</div>
+<div id="polynomial" class="section level3">
+<h3>Polynomial</h3>
+<p>The tuning parameter <code>degree</code> tuning was causing problems, it turns out using <code>degree()</code> gives us a <code>double</code> when we would rather have an <code>int</code>, so naming this tuning parameter as <code>"degree"</code> then passing it to <code>degree_int()</code> solves this issue.</p>
+<pre class="r"><code>svm_poly_mod &lt;- svm_poly(cost=tune(),scale_factor = tune(),degree=tune(&quot;degree&quot;)) %&gt;% 
+  set_engine(&quot;kernlab&quot;) %&gt;% 
+  set_mode(&quot;classification&quot;) 
+
+svm_poly_wflow &lt;- workflow() %&gt;% 
+  add_model(svm_poly_mod ) %&gt;%
+  add_recipe(svm_rec)
+
+set.seed(123)
+svm_poly_grid &lt;-  grid_max_entropy( cost(),scale_factor(),degree = degree_int(),  size=8  )
+
+svm_poly_res &lt;- tune_grid(svm_poly_wflow, 
+                      grid = svm_poly_grid,
+                     resamples = folds,
+                     control = ctrl_grid)</code></pre>
+</div>
+</div>
+</div>
+<div id="model-stack" class="section level1">
+<h1>Model Stack</h1>
+<p>Let’s now stack up all the models</p>
+<pre class="r"><code>credit_stack &lt;- stacks() %&gt;% 
+  add_candidates(simpled_lgst_res) %&gt;% 
+  add_candidates(complex_lgst_res) %&gt;% 
+  add_candidates(rand_forest_res) %&gt;% 
+  add_candidates(svm_rbf_res) %&gt;% 
+  add_candidates(svm_poly_res)</code></pre>
+<p>Now we fit the stack and view the resulting ensemble model.</p>
+<pre class="r"><code>credit_model_stack &lt;- credit_stack %&gt;%
+  blend_predictions()
+
+fit_credit_model_stack &lt;- credit_model_stack %&gt;% 
+  fit_members()
+
+fit_credit_model_stack</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   member                          type         weight
+##   &lt;chr&gt;                           &lt;chr&gt;         &lt;dbl&gt;
+## 1 .pred_good_complex_lgst_res_1_1 logistic_reg 2.85  
+## 2 .pred_good_rand_forest_res_1_08 rand_forest  2.79  
+## 3 .pred_good_simpled_lgst_res_1_1 logistic_reg 0.0184</code></pre>
+<p>Below are few helper functions to help display the metrics</p>
+<pre class="r"><code># Function to get the ROC AUC
+pred_roc_auc &lt;- function(model){
+  bind_cols(credit_test %&gt;%  select(Status),
+            predict(model,credit_test,type=&quot;prob&quot;)) %&gt;% 
+    roc_auc(truth=Status, .pred_bad ) 
+}
+
+# Function to get the Accuracy
+pred_accuracy &lt;- function(model){
+  bind_cols(credit_test %&gt;%  select(Status),
+            predict(model,credit_test)) %&gt;% 
+    accuracy(truth=Status, .pred_class  ) 
+}
+
+# Produce a table of results
+tabled_metric &lt;- function(model,model_name){
+  bind_rows(
+    pred_roc_auc(model),
+    pred_accuracy(model)
+  ) %&gt;% 
+    pivot_wider(names_from = .metric,values_from = .estimate) %&gt;% 
+    mutate(model=model_name) %&gt;% 
+    select(model,everything(),-.estimator)
+}</code></pre>
+<p>Below are the <code>roc_auc</code> and <code>accuracy</code> values for the stacked model</p>
+<pre class="r"><code>tabled_metric(fit_credit_model_stack,&quot;Stack Model&quot;)</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   model       roc_auc accuracy
+##   &lt;chr&gt;         &lt;dbl&gt;    &lt;dbl&gt;
+## 1 Stack Model   0.869    0.831</code></pre>
+</div>
+<div id="compare-to-other-models" class="section level1">
+<h1>Compare to other models</h1>
+<p>We can compare the stacked model to it’s constituent models</p>
+<pre class="r"><code># Select the best model
+fitted_model &lt;- function(workflow,results){
+  workflow %&gt;%
+    finalize_workflow(results %&gt;% select_best(&quot;roc_auc&quot;)  )%&gt;% 
+    fit(credit_train)
+  }
+
+simple_lgst_fit &lt;-  simple_lgst_wf %&gt;% fit(credit_train)
+complex_lgst_model &lt;-  fitted_model(lgst_wf,complex_lgst_res)
+rf_model &lt;-  fitted_model(rand_forest_wf,rand_forest_res)
+svm_rbf_model &lt;- fitted_model(svm_rbf_wflow,svm_rbf_res)
+svm_poly_model &lt;- fitted_model(svm_poly_wflow,svm_poly_res)
+
+all_tabled &lt;-  bind_rows(
+  tabled_metric(fit_credit_model_stack,&quot;Stack Model&quot;),
+  tabled_metric(simple_lgst_fit,&quot;Simple Logistic&quot;),
+  tabled_metric(complex_lgst_model,&quot;Complex Logistic&quot; ),
+  tabled_metric(rf_model,&quot;Random Forest&quot; ),
+  tabled_metric(svm_rbf_model,&quot;SVM RBF&quot; ),
+  tabled_metric(svm_poly_model,&quot;SVM Polynomial&quot; )
+)</code></pre>
+<p>Now that we have all the models, we can see which did best.</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+model
+</th>
+<th style="text-align:right;">
+roc_auc
+</th>
+<th style="text-align:right;">
+accuracy
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Stack Model
+</td>
+<td style="text-align:right;">
+0.869
+</td>
+<td style="text-align:right;">
+0.831
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Complex Logistic
+</td>
+<td style="text-align:right;">
+0.867
+</td>
+<td style="text-align:right;">
+0.791
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Simple Logistic
+</td>
+<td style="text-align:right;">
+0.859
+</td>
+<td style="text-align:right;">
+0.824
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+SVM RBF
+</td>
+<td style="text-align:right;">
+0.849
+</td>
+<td style="text-align:right;">
+0.811
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Random Forest
+</td>
+<td style="text-align:right;">
+0.846
+</td>
+<td style="text-align:right;">
+0.804
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+SVM Polynomial
+</td>
+<td style="text-align:right;">
+0.840
+</td>
+<td style="text-align:right;">
+0.791
+</td>
+</tr>
+</tbody>
+</table>
+<p>As we can confirm, the stack model performed best over all other models in terms of roc_auc and accuracy. But the logistic models were close behind</p>
+<pre class="r"><code>ggplot(all_tabled,aes(x=roc_auc,y=accuracy))+geom_point(col=&quot;red&quot;,size=2)+
+  geom_text(aes(label= model),vjust=-.5 )+
+  xlim(0.835,0.87)+ylim(0.775,0.84)+
+  labs(title=&quot;Performance of models on test set&quot;)+
+  theme_bw()  </code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p><em><strong>Note</strong>: In practice you wouldn’t use so many models in the final test phase, but this is for purely demonstrational purposes.</em></p>
+</div>
+<div id="fake-data" class="section level1">
+<h1>Fake Data</h1>
+<p>Let’s see what kind of predicts the model is making on fake, simulated data</p>
+<pre class="r"><code>fake_data &lt;- crossing(Seniority=10,
+         Home=c(&quot;owner&quot;,&quot;rent&quot;,&quot;parents&quot;),
+         Age=18:70,
+         Marital=c(&quot;married&quot;,&quot;single&quot;,&quot;separated&quot;,&quot;widow&quot;),
+         Records=c(&quot;no&quot;),
+         Job=c(&quot;partime&quot;),
+         Expenses=60,
+         Income=seq(90,200,10) ,
+         Assets=5662,
+         Debt=400,
+         Amount=1000,
+         Price=1488,
+         Time=1)</code></pre>
+<p>We simulate data with several fixed attributes, but vary a few of them. Namely we vary <code>Home</code>, <code>Age</code>,<code>Marital</code> and <code>Income</code> to see how changes in these attributes change the predicted outcome.</p>
+<p>We will consider two models. The simple logistic model and the stacked model.</p>
+<pre class="r"><code>bind_cols(fake_data,
+          predict(simple_lgst_fit,fake_data,type=&quot;prob&quot; )) %&gt;% 
+  ggplot(aes(x=Age,y=Income,))+
+  geom_raster(aes(fill=.pred_bad))+
+  facet_grid(Home~Marital)+
+  theme_bw()+
+  scale_fill_gradient2(low=&quot;forestgreen&quot;,high=&quot;firebrick3&quot;,mid=&quot;white&quot;,midpoint = 0.5)+
+  labs(title=&quot;Simple Logistic model predicts on simulated data&quot;,subtitle=&quot;Varying by Age, Income, Marital Status, and Home Status&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>Darker green tones represent high probabilities of someone having a good credit score, Darker red tones represent high probabilities of predicting someone having a bad credit score. The white tone denotes a 50/50 split between the two classes.</p>
+<p>The simple logistic model predicts that someone who is married will generally have a good credit status, but if someone is separated or widowed, then the chances increase. The increase is especially noticeable as the age of an individual increases.</p>
+<pre class="r"><code>bind_cols(fake_data,
+          predict(fit_credit_model_stack,fake_data,type=&quot;prob&quot; )) %&gt;% 
+  ggplot(aes(x=Age,y=Income,))+
+  geom_raster(aes(fill=.pred_bad))+
+  facet_grid(Home~Marital)+
+  theme_bw()+
+  scale_fill_gradient2(low=&quot;forestgreen&quot;,high=&quot;firebrick3&quot;,mid=&quot;white&quot;,midpoint = 0.5)+
+  labs(title=&quot;Stacked model predicts on simulated data&quot;,subtitle=&quot;Varying by Age, Income, Marital Status, and Home Status&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<p>However, the stacked model generally predicts everyone to have a good credit status, though the probability itself varies depending on what attributes are being considered.</p>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>We have seen how to fit an ensemble model in <code>R</code> using the <code>stacks</code> package as part of the <code>tidymodels</code> framework.</p>
+<p>The resulting ensemble is superior over the other considered models.</p>
+</div>
