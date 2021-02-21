@@ -2,11 +2,8 @@
 title: London in Lockdown - A 2020 Mobility Review
 author: ''
 date: '2021-01-08'
-slug: []
-categories: []
-tags: []
-description: ''
-topics: []
+tags:
+  - data exploration
 ---
 
 It goes without saying that 2020 was a year unlike any other, coronavirus has had a massive global impact that has seeped into every corner of our lives. 
