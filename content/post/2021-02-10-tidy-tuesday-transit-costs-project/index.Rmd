@@ -19,7 +19,6 @@ First, load the libraries that will be used
 ## Loading libraries
 
 ## Loads in font
-#extrafont::font_import(path='C:\\Users\\Gurpreet\\AppData\\Local\\Microsoft\\Windows\\Fonts')
 extrafont::loadfonts("win",quiet = TRUE)
 library(tidyverse)
 library(countrycode)
