@@ -2,11 +2,8 @@
 title: Simulating Monopoly - Part 2
 author: ''
 date: '2021-01-27'
-slug: []
-categories: []
-tags: []
-description: ''
-topics: []
+tags:
+  - data exploration
 ---
 
 <script src="index_files/header-attrs/header-attrs.js"></script>
@@ -32,7 +29,7 @@ topics: []
 
 
 <p>This is the second part in a two part series of looking at the game monopoly. If you haven’t read part one, then click <a href="https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/">here</a> to read the post. I will now assume you are familiar with monopoly and how the simulation was built.</p>
-<p>Previously we built a simulation of Monopoly and found that the most likeliest properties a player ends a dice roll on, that are also purchasable are: Trafalgar Square, Vine Street, and Stations.</p>
+<p>Previously we built a simulation of Monopoly and found that the most likeliest properties a player ends a dice roll on, that are also purchasable are: Trafalgar Square, Vine Street, and Stations. To view the full list of probabilities click <a href="https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/#table-of-simulation-results">here</a>.</p>
 <p>The least likeliest are Old Kent Road, Whitechapel Road, and Park Lane.</p>
 <p>In this post we will discuss the properties that are the best or worst depending on the metrics and scenarios we want to look at.</p>
 <p>First I will quickly load in the required data.</p>
@@ -41,8 +38,6 @@ library(patchwork)
 library(ggtext)
 
 monopoly_props &lt;-  readxl::read_xlsx(here::here(&quot;static/data/monpoly_properties.xlsx&quot;))
-
-
 
 color_codes &lt;-  c(&quot;None&quot;=&quot;grey40&quot;,
                   &quot;Brown&quot; = &quot;#946C6B&quot;,
@@ -620,7 +615,7 @@ Hotel
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
 <p>Overall when looking at the the result of many dice rolls, with the strategy of leaving jail we can obtain the following conclusions:</p>
-<p><em>(You can draw similar results for the different scenarios by looking at the graphs)</em></p>
+<p><em>(You can draw slightly similar results for the different scenarios by looking at their graphs)</em></p>
 <p>For expected income per dice roll by property:</p>
 <ul>
 <li><p>The properties with the highest expected income are: Mayfair (£1.31), Park Lane (£0.76), and Bond Street (£0.70).</p></li>
@@ -645,44 +640,4 @@ Hotel
 <p>After 3 houses have been developed, the number of opposition rolls required to pay off the cost generally remains constant.</p>
 <p>In the long run, after many dice rolls, the Green set generates the highest profit.</p>
 <p>The major takeaway is that the best set to aim for in terms of ROI is Orange, in terms of expected income it’s Green. If you have a set, you should aim to build 3 houses as it provides the ROI on average.</p>
-<pre class="r"><code>sessionInfo()</code></pre>
-<pre><code>## R version 4.0.3 (2020-10-10)
-## Platform: x86_64-w64-mingw32/x64 (64-bit)
-## Running under: Windows 10 x64 (build 19041)
-## 
-## Matrix products: default
-## 
-## locale:
-## [1] LC_COLLATE=English_United Kingdom.1252 
-## [2] LC_CTYPE=English_United Kingdom.1252   
-## [3] LC_MONETARY=English_United Kingdom.1252
-## [4] LC_NUMERIC=C                           
-## [5] LC_TIME=English_United Kingdom.1252    
-## 
-## attached base packages:
-## [1] stats     graphics  grDevices utils     datasets  methods   base     
-## 
-## other attached packages:
-##  [1] ggtext_0.1.0    patchwork_1.1.1 forcats_0.5.0   stringr_1.4.0  
-##  [5] dplyr_1.0.2     purrr_0.3.4     readr_1.4.0     tidyr_1.1.2    
-##  [9] tibble_3.0.3    ggplot2_3.3.2   tidyverse_1.3.0
-## 
-## loaded via a namespace (and not attached):
-##  [1] Rcpp_1.0.5        lubridate_1.7.9   here_1.0.1        ps_1.4.0         
-##  [5] assertthat_0.2.1  rprojroot_2.0.2   digest_0.6.25     R6_2.4.1         
-##  [9] cellranger_1.1.0  backports_1.1.10  reprex_0.3.0      evaluate_0.14    
-## [13] highr_0.8         httr_1.4.2        blogdown_0.21     pillar_1.4.6     
-## [17] rlang_0.4.7       readxl_1.3.1      rstudioapi_0.11   blob_1.2.1       
-## [21] DT_0.16           rmarkdown_2.5     labeling_0.4.2    webshot_0.5.2    
-## [25] htmlwidgets_1.5.2 munsell_0.5.0     gridtext_0.1.1    broom_0.7.2      
-## [29] compiler_4.0.3    modelr_0.1.8      xfun_0.18         pkgconfig_2.0.3  
-## [33] htmltools_0.5.0   tidyselect_1.1.0  bookdown_0.21     fansi_0.4.1      
-## [37] viridisLite_0.3.0 crayon_1.3.4      dbplyr_1.4.4      withr_2.3.0      
-## [41] grid_4.0.3        jsonlite_1.7.1    gtable_0.3.0      lifecycle_0.2.0  
-## [45] DBI_1.1.0         magrittr_1.5      scales_1.1.1      cli_2.1.0        
-## [49] stringi_1.5.3     farver_2.0.3      fs_1.5.0          xml2_1.3.2       
-## [53] ellipsis_0.3.1    generics_0.0.2    vctrs_0.3.4       kableExtra_1.3.1 
-## [57] tools_4.0.3       glue_1.4.2        markdown_1.1      crosstalk_1.1.0.1
-## [61] hms_0.5.3         yaml_2.2.1        colorspace_1.4-1  rvest_0.3.6      
-## [65] knitr_1.30        haven_2.3.1</code></pre>
 </div>

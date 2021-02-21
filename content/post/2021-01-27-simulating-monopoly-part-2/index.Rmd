@@ -2,16 +2,13 @@
 title: Simulating Monopoly - Part 2
 author: ''
 date: '2021-01-27'
-slug: []
-categories: []
-tags: []
-description: ''
-topics: []
+tags:
+  - data exploration
 ---
 
 This is the second part in a two part series of looking at the game monopoly. If you haven't read part one, then click [here](https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/) to read the post. I will now assume you are familiar with monopoly and how the simulation was built.
 
-Previously we built a simulation of Monopoly and found that the most likeliest properties a player ends a dice roll on, that are also purchasable are: Trafalgar Square, Vine Street, and Stations.
+Previously we built a simulation of Monopoly and found that the most likeliest properties a player ends a dice roll on, that are also purchasable are: Trafalgar Square, Vine Street, and Stations. To view the full list of probabilities click [here](https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/#table-of-simulation-results).
 
 The least likeliest are Old Kent Road, Whitechapel Road, and Park Lane.
 
@@ -26,8 +23,6 @@ library(patchwork)
 library(ggtext)
 
 monopoly_props <-  readxl::read_xlsx(here::here("static/data/monpoly_properties.xlsx"))
-
-
 
 color_codes <-  c("None"="grey40",
                   "Brown" = "#946C6B",
@@ -1077,7 +1072,7 @@ The above graph shows the expected profit after several dice rolls. When part of
 
 Overall when looking at the the result of many dice rolls, with the strategy of leaving jail we can obtain the following conclusions:
 
-*(You can draw similar results for the different scenarios by looking at the graphs)*
+*(You can draw slightly similar results for the different scenarios by looking at their graphs)*
 
 For expected income per dice roll by property:
 
@@ -1111,7 +1106,3 @@ In the long run, after many dice rolls, the Green set generates the highest prof
 
 
 The major takeaway is that the best set to aim for in terms of ROI is Orange, in terms of expected income it's Green. If you have a set, you should aim to build 3 houses as it provides the ROI on average.
-
-```{r}
-sessionInfo()
-```
