@@ -225,7 +225,7 @@ ctrl_resamples &lt;- control_stack_resamples() </code></pre>
 <h2>Logistic model</h2>
 <div id="simple-logistic-model" class="section level3">
 <h3>Simple Logistic Model</h3>
-<p>Let create a simple logistic model</p>
+<p>Let’s create a simple logistic model</p>
 <pre class="r"><code>credit_simple_lgt_rec &lt;-recipe(Status~.,data=credit_train) %&gt;% 
   step_rm(&quot;Time&quot;) %&gt;% 
   step_dummy(all_nominal(),-all_outcomes())
@@ -244,7 +244,7 @@ simpled_lgst_res &lt;- fit_resamples(simple_lgst_wf,
 </div>
 <div id="more-complex-logistic-regression-model" class="section level3">
 <h3>More complex logistic regression model</h3>
-<p>Let’s credit a more complex logistic regression model with more feature engineering and use a varying value for the penalty <span class="math inline">\(\lambda\)</span> and mixture <span class="math inline">\(\alpha\)</span>.</p>
+<p>Let’s create a more complex logistic regression model with more feature engineering and using a varying value for the penalty <span class="math inline">\(\lambda\)</span> and mixture <span class="math inline">\(\alpha\)</span>.</p>
 <pre class="r"><code>complex_lgt_rec &lt;-  recipe(Status~.,data=credit_train) %&gt;% 
   step_rm(&quot;Time&quot;) %&gt;% 
   step_YeoJohnson(all_numeric()) %&gt;% 
@@ -369,7 +369,7 @@ fit_credit_model_stack</code></pre>
 ## 1 .pred_good_complex_lgst_res_1_1 logistic_reg 2.85  
 ## 2 .pred_good_rand_forest_res_1_08 rand_forest  2.79  
 ## 3 .pred_good_simpled_lgst_res_1_1 logistic_reg 0.0184</code></pre>
-<p>Below are few helper functions to help display the metrics</p>
+<p>Below are a few helper functions to help display the metrics</p>
 <pre class="r"><code># Function to get the ROC AUC
 pred_roc_auc &lt;- function(model){
   bind_cols(credit_test %&gt;%  select(Status),
@@ -543,7 +543,7 @@ SVM Polynomial
   facet_grid(Home~Marital)+
   theme_bw()+
   scale_fill_gradient2(low=&quot;forestgreen&quot;,high=&quot;firebrick3&quot;,mid=&quot;white&quot;,midpoint = 0.5)+
-  labs(title=&quot;Simple Logistic model predicts on simulated data&quot;,subtitle=&quot;Varying by Age, Income, Marital Status, and Home Status&quot;)</code></pre>
+  labs(title=&quot;Simple Logistic model predictions on simulated data&quot;,subtitle=&quot;Varying by Age, Income, Marital Status, and Home Status&quot;)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
 <p>Darker green tones represent high probabilities of someone having a good credit score, Darker red tones represent high probabilities of predicting someone having a bad credit score. The white tone denotes a 50/50 split between the two classes.</p>
 <p>The simple logistic model predicts that someone who is married will generally have a good credit status, but if someone is separated or widowed, then the chances increase. The increase is especially noticeable as the age of an individual increases.</p>
@@ -554,7 +554,7 @@ SVM Polynomial
   facet_grid(Home~Marital)+
   theme_bw()+
   scale_fill_gradient2(low=&quot;forestgreen&quot;,high=&quot;firebrick3&quot;,mid=&quot;white&quot;,midpoint = 0.5)+
-  labs(title=&quot;Stacked model predicts on simulated data&quot;,subtitle=&quot;Varying by Age, Income, Marital Status, and Home Status&quot;)</code></pre>
+  labs(title=&quot;Stacked model predictions on simulated data&quot;,subtitle=&quot;Varying by Age, Income, Marital Status, and Home Status&quot;)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
 <p>However, the stacked model generally predicts everyone to have a good credit status, though the probability itself varies depending on what attributes are being considered.</p>
 </div>

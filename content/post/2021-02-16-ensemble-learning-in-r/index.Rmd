@@ -80,7 +80,7 @@ ctrl_resamples <- control_stack_resamples()
 
 ### Simple Logistic Model
 
-Let create a simple logistic model
+Let's create a simple logistic model
 
 ```{r}
 credit_simple_lgt_rec <-recipe(Status~.,data=credit_train) %>% 
@@ -104,7 +104,7 @@ simpled_lgst_res <- fit_resamples(simple_lgst_wf,
 
 ### More complex logistic regression model
 
-Let's credit a more complex logistic regression model with more feature engineering and use a varying value for the penalty $\lambda$ and mixture $\alpha$.
+Let's create a more complex logistic regression model with more feature engineering and using a varying value for the penalty $\lambda$ and mixture $\alpha$.
 
 ```{r}
 complex_lgt_rec <-  recipe(Status~.,data=credit_train) %>% 
@@ -241,7 +241,7 @@ fit_credit_model_stack <- credit_model_stack %>%
 fit_credit_model_stack
 ```
 
-Below are few helper functions to help display the metrics
+Below are a few helper functions to help display the metrics
 
 ```{r}
 # Function to get the ROC AUC
@@ -363,7 +363,7 @@ bind_cols(fake_data,
   facet_grid(Home~Marital)+
   theme_bw()+
   scale_fill_gradient2(low="forestgreen",high="firebrick3",mid="white",midpoint = 0.5)+
-  labs(title="Simple Logistic model predicts on simulated data",subtitle="Varying by Age, Income, Marital Status, and Home Status")
+  labs(title="Simple Logistic model predictions on simulated data",subtitle="Varying by Age, Income, Marital Status, and Home Status")
 ```
 
 Darker green tones represent high probabilities of someone having a good credit score, Darker red tones represent high probabilities of predicting someone having a bad credit score. The white tone denotes a 50/50 split between the two classes.
@@ -378,7 +378,7 @@ bind_cols(fake_data,
   facet_grid(Home~Marital)+
   theme_bw()+
   scale_fill_gradient2(low="forestgreen",high="firebrick3",mid="white",midpoint = 0.5)+
-  labs(title="Stacked model predicts on simulated data",subtitle="Varying by Age, Income, Marital Status, and Home Status")
+  labs(title="Stacked model predictions on simulated data",subtitle="Varying by Age, Income, Marital Status, and Home Status")
 ```
 
 However, the stacked model generally predicts everyone to have a good credit status, though the probability itself varies depending on what attributes are being considered.
