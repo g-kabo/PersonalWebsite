@@ -58,11 +58,8 @@ Below are the same simulation results seen in the first blog post. ***Note**: I 
 
 ```{r}
 leave_long <-  readRDS(here::here("static/data/monopoly_leave_long.rds"))
-
 stay_long <- readRDS(here::here("static/data/monopoly_stay_long.rds"))
-
 leave_30 <-  readRDS(here::here("static/data/monopoly_leave_30.rds"))
-
 stay_30 <-  readRDS(here::here("static/data/monopoly_stay_30.rds"))
 ```
 
