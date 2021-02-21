@@ -2,17 +2,15 @@
 title: Have you been Pwned?
 author: ''
 date: '2020-12-16'
-slug: []
-categories: []
-tags: []
-description: ''
-topics: []
+tags:
+  - data exploration
 ---
 
 <p align='center'>
 <img src="/images/cybersec.jpeg" width="800" height="500">
 </p>
 
+_**UPDATE**: This post was originally made on 16th Dec 2020. Minor changes from the data may have occurred since then which may result in slight discrepancies between the written text and any tables, graphs or data shown here_
 
 To "pwn" someone means that you have effectively overpowered or dominated that individual. It used to be most commonly used when someone was beaten in a video game, but now it refers to when a nefarious cyber-attack has occurred and someone has had their personal information stolen.
 
@@ -76,11 +74,10 @@ data_breaches <- httr::content(raw_result, as = "text") %>%
 
 data_breach <-  data_breaches %>% 
   select(-LogoPath,-Description) %>%
-  mutate(across(ends_with("Date"), as.Date))
+  mutate(across(ends_with("Date"), as.Date)) %>% 
+  filter( lubridate::year(BreachDate) < 2021  ) # ADDED FOR UPDATE
 
 ```
-
-
 
 
 We have 495 data breaches in this dataset, with 14 attributes. The attributes of most interest to us are: 
@@ -489,7 +486,7 @@ data_breach %>%
   geom_col(fill="#AA1016")+
   geom_text(aes(label=n),vjust=-.5,col="white")+
   scale_x_continuous(breaks= seq(2008,2020,1))+
-  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,24) )+ 
+  scale_y_continuous(expand=expansion(mult = 0),limits = c(0,26) )+ 
   labs(title="Though the number of massive data breaches peaked in 2018...",
        subtitle = "Plot showing number of breaches affecting at least <span style = 'color: #AA1016'>**10 million people**</span>. \n \nWhile the number of massive data breaches has decreased from 2018,<br>online users needs to remain cautious as the number of massive breaches is still higher<br> than it was in the first half of the previous decade.",
        y="Number of breaches",x="Year",caption="Source: haveibeenpwned.com")+
