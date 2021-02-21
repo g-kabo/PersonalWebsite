@@ -882,7 +882,3 @@ The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.
 In the next blogpost, I will look at the fun part! In particular I will look at the properties and deciding which are the best based on a number of factors like which properties give the best ROI? which can produce the fastest returns? which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?
 
 All that coming up!
-
-```{r}
-sessionInfo()
-```
