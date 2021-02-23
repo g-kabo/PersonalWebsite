@@ -1,0 +1,280 @@
+---
+title: What is the average distance of a line through a sphere?
+author: ''
+date: '2021-02-22'
+slug: []
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+<script src="index_files/header-attrs/header-attrs.js"></script>
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+
+
+<p>Recently I saw these <a href="https://www.youtube.com/watch?v=i4VqXRRXi68">two</a> <a href="https://www.youtube.com/watch?v=TFhKK6bWcYE">videos</a> by MindYourDecisions that asked the question of what is the average distances for two random points in a square and what is the average distance for two random points on the circumference of a circle.</p>
+<p>I wanted to produce a simulation that will answer these question as well as answer new ones like, what is the average distance for a line <em>in</em> a circle, and what is the average distance between two random points on the surface of a sphere?</p>
+<div id="average-distance-between-two-points-in-a-square" class="section level1">
+<h1>Average distance between two points in a square</h1>
+<p>First let’s show the result for the case of two randomly points in a square. We will simulate the answer</p>
+<p>To calculate distance between two points say <span class="math inline">\(P_1\)</span> and <span class="math inline">\(P_2\)</span> with coordinates <span class="math inline">\((x_1,y_1)\)</span> and <span class="math inline">\((x_2,y_2)\)</span> respectively. We simply use the Pythagorean theorem to obtain the distance.</p>
+<p><span class="math display">\[
+d = \sqrt{(x_2-x_1)^2+(y_2-y_1)^2}
+\]</span></p>
+<p>We can now simulate the average distance by randomly choosing points <span class="math inline">\(P_1\)</span> and <span class="math inline">\(P_2\)</span> and then finding the mean of their distances.</p>
+<pre class="r"><code>library(tidyverse)
+
+n &lt;-  1e6
+
+set.seed(123)
+x1 &lt;- runif(n) ;x2 &lt;- runif(n)
+y1 &lt;- runif(n) ;y2 &lt;- runif(n)
+
+distances &lt;-  sqrt((x2-x1)^2+(y2-y1)^2)
+
+sim_dist &lt;-  mean(distances)
+exact_dist &lt;-  (2+sqrt(2)+5*log(sqrt(2)+1))/15
+
+sim_dist</code></pre>
+<pre><code>## [1] 0.5214964</code></pre>
+<p><span class="math display">\[
+\text{Estimated distance} = 0.521496403495269
+\]</span></p>
+<p>We know what the precise value should be. It can be found from the first video linked earlier.</p>
+<pre class="r"><code>exact_dist</code></pre>
+<pre><code>## [1] 0.5214054</code></pre>
+<p><span class="math display">\[
+\text{Actual distance} =   \frac{2+\sqrt2+5\log{(\sqrt{2}+1)}}{15} \approx  0.521405433164721
+\]</span></p>
+<p>This means we can work out the relative percentage error for our simulation</p>
+<pre class="r"><code>(sim_dist-exact_dist)/exact_dist*100</code></pre>
+<pre><code>## [1] 0.01744714</code></pre>
+<p><span class="math display">\[
+\text{Relative Percentage error with 1,000,000 points} =   0.017\text{%}
+\]</span></p>
+<p>We obtain very close results to the actual answer.</p>
+</div>
+<div id="average-distance-between-two-random-points-on-the-circumference-of-a-circle" class="section level1">
+<h1>Average distance between two random points on the circumference of a circle</h1>
+<p>Now we answer the question from the second video about the average distance between two random points on the circumference of a circle.</p>
+<p>We will change our coordinate system from cartesian coordinates to polar coordinates.</p>
+<p>For the distance <span class="math inline">\(d\)</span> between two points we have
+<span class="math display">\[
+d = \sqrt{(x_2-x_1)^2+(y_2-y_1)^2}
+\]</span>
+In terms of polar coordinates, and setting <span class="math inline">\(r=1\)</span> we obtain.</p>
+<p><span class="math display">\[
+d=\sqrt{2-2\cos(\theta_2-\theta_1)} = | 2\sin \frac{\theta_2-\theta_1}{2}|
+\]</span></p>
+<p>We take the modulus as we only want positive values.</p>
+<p>Now we look for confirmation that all the distance formulas agree with each other.</p>
+<p>In cartesian coordinates,</p>
+<pre class="r"><code>#Test of same distance
+theta_1 = runif(1,max=2*pi) ;theta_2 = runif(1,max=2*pi)
+
+## distances
+# in x and y
+sqrt((cos(theta_2)-cos(theta_1))^2+(sin(theta_2)-sin(theta_1))^2)</code></pre>
+<pre><code>## [1] 1.176225</code></pre>
+<p>In polar coordinates</p>
+<pre class="r"><code>sqrt(2-2*cos(theta_2-theta_1))</code></pre>
+<pre><code>## [1] 1.176225</code></pre>
+<p>In another another trigonometric identity</p>
+<pre class="r"><code>abs(2*sin( (theta_2-theta_1)/2  ))</code></pre>
+<pre><code>## [1] 1.176225</code></pre>
+<p>We see that the values agree with each other. Now we simulate many points randomly and then calculate the average distance</p>
+<pre class="r"><code>n &lt;- 1e6
+set.seed(123)
+theta_1 &lt;- runif(n,min=0,max=2*pi)
+theta_2 &lt;- runif(n,min=0,max=2*pi)
+
+sim_dist &lt;-  mean(sqrt(2-2*cos(theta_2-theta_1)))
+sim_dist</code></pre>
+<pre><code>## [1] 1.273336</code></pre>
+<p><span class="math display">\[
+\text{Estimated distance} = 1.273336
+\]</span></p>
+<pre class="r"><code>exact_dist &lt;- 4/pi
+exact_dist</code></pre>
+<pre><code>## [1] 1.27324</code></pre>
+<p><span class="math display">\[
+\text{Actual distance} = \frac4\pi \approx 1.27324
+\]</span></p>
+<pre class="r"><code>(sim_dist-exact_dist)/(exact_dist)*100</code></pre>
+<pre><code>## [1] 0.007585434</code></pre>
+<p><span class="math display">\[
+\text{Relative Percentage error with 1,000,000 points} = 0.008\text{%}
+\]</span></p>
+<p>For derivation of the actual result see the video<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></p>
+</div>
+<div id="average-distance-between-two-random-points-on-a-sphere" class="section level1">
+<h1>Average distance between two random points on a sphere</h1>
+<p>Now we simulate two points on a sphere. In cartesian coordinates the distance is as follows</p>
+<p><span class="math display">\[
+d = \sqrt{(x_2-x_1)^2 + (y_2-y_1)^2  + (z_2-z_1)^2       }
+\]</span></p>
+<p>By converting to spherical polar coordinates with the following transformation</p>
+<p><span class="math display">\[
+\begin{align}
+x &amp;= r \cos\theta\sin\phi\\
+y &amp;= r \sin\theta\sin\phi\\
+z &amp;= r \cos\phi
+\end{align}
+\]</span></p>
+<p>By using the fact that <span class="math inline">\(r=1\)</span>, we obtain (after a lot of work) the following distance formula</p>
+<p><span class="math display">\[
+\sqrt{2-2\Big(\sin(\phi_1)\sin(\phi_2)\cos(\theta_2-\theta_1)+\cos(\phi_1)\cos(\phi_2)\Big)}
+\]</span></p>
+<p>Where for point <span class="math inline">\(P_i\)</span> has cartesian coordinates <span class="math inline">\((x_i,y_i,z_i)\)</span> and spherical polar coordinates <span class="math inline">\((r_i,\theta_i,\phi_i)\)</span>.</p>
+<p>We can actually simplify this expression even further by choosing <span class="math inline">\(P_1\)</span> to point “North” i.e. set the coordinates as</p>
+<p><span class="math display">\[
+(r_1=1,\theta_1=0,\phi_1=0)
+\]</span></p>
+<p>Then we are left with the expression</p>
+<p><span class="math display">\[
+d = \sqrt{ 2-2\cos\phi_2}
+\]</span></p>
+<p>Now that all that’s left is to simulate the results and find the mean!</p>
+<pre class="r"><code>n &lt;- 1e5
+set.seed(123)
+theta_1 &lt;-runif(n,min=0,max=2*pi)
+theta_2 &lt;-runif(n,min=0,max=2*pi)
+phi_1 &lt;-  runif(n,min=0,max=pi)
+phi_2 &lt;-  runif(n,min=0,max=pi)
+
+dist &lt;- sqrt(2-2*(sin(phi_1)*sin(phi_2)*cos(theta_2-theta_1)+cos(phi_1)*cos(phi_2)))
+simple_dist &lt;- sqrt(2-2*(cos(phi_2)))
+
+mean(dist)</code></pre>
+<pre><code>## [1] 1.320945</code></pre>
+<pre class="r"><code>mean(simple_dist)</code></pre>
+<pre><code>## [1] 1.273955</code></pre>
+<p>Hold on! The two distances don’t agree with each other. Let’s convert to cartesian and work out the distances there</p>
+<pre class="r"><code>polar_to_cart &lt;- function(theta,phi){
+  x = cos(theta)*sin(phi)
+  y = sin(theta)*sin(phi)
+  z = cos(phi)
+return(list(x,y,z))
+}
+
+sphere_1 &lt;- polar_to_cart(theta_1,phi_1)
+sphere_2 &lt;- polar_to_cart(theta_2,phi_2)
+
+dist &lt;- sqrt((sphere_2[[1]]-sphere_1[[1]])^2+(sphere_2[[2]]-sphere_1[[2]])^2+(sphere_2[[3]]-sphere_1[[3]])^2)
+mean(dist)</code></pre>
+<pre><code>## [1] 1.320945</code></pre>
+<p>None of the distances seem to be agree with each other. What gives? Well let’s plot the points and see what is happening</p>
+<pre class="r"><code>cbind(theta_1,phi_1) %&gt;%  as_tibble() %&gt;%
+  pivot_longer(everything()) %&gt;% 
+  ggplot(aes(x=value))+geom_histogram()+
+  facet_wrap(.~name,scales=&quot;free&quot;)+
+  ggtitle(&quot;Distribution of simulated theta and phi coordinates&quot;)+
+  theme_bw()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>Well the <span class="math inline">\(\theta\)</span> and <span class="math inline">\(\phi\)</span> values seem to be uniformly distributed., let’s check the cartesian coordinates</p>
+<pre class="r"><code>sphere_1 %&gt;% as_tibble(.name_repair = &quot;unique&quot;) %&gt;% 
+    rename(&quot;X&quot;=&quot;...1&quot;,&quot;Y&quot;=&quot;...2&quot;,&quot;Z&quot;=&quot;...3&quot;) %&gt;% 
+  pivot_longer(everything()) %&gt;% 
+  ggplot(aes(x=value))+geom_histogram(binwidth = .05)+
+  facet_wrap(.~name)+theme_bw()+
+  ggtitle(&quot;Distribution of points for X, Y, and Z coordinates&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>Ahah! We see that the <span class="math inline">\(x,y,z\)</span> coordinates are NOT uniformly distributed. This means that we have many points clustered together about the poles of the sphere, and we have few points around the equator.</p>
+<p>To understand more in-depth see this page<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+<div id="generating-better-points-on-a-sphere" class="section level2">
+<h2>Generating better points on a sphere</h2>
+<p>Consider <span class="math inline">\(U\)</span> and <span class="math inline">\(V\)</span> as random variables with a uniform distribution. That is,</p>
+<p><span class="math display">\[
+U \sim \text{Unif}(0,1) \\
+V \sim \text{Unif}(0,1)
+\]</span></p>
+<p>Then for <span class="math inline">\(\theta\)</span> and <span class="math inline">\(\phi\)</span> in terms of <span class="math inline">\(U\)</span> and <span class="math inline">\(V\)</span>, we get</p>
+<p><span class="math display">\[
+\theta = 2\pi U \\
+\phi =  2 \arccos(2V-1)
+\]</span></p>
+<pre class="r"><code>n &lt;- 1e5
+generate_points_on_sphere &lt;- function(n=100){
+  u &lt;-  runif(n)
+  v &lt;-  runif(n)
+  
+  theta &lt;- 2*pi*u
+  phi &lt;- acos(2*v-1)
+  
+  return(list(theta,phi))
+}
+set.seed(123)
+sphere_1 &lt;- generate_points_on_sphere(n)
+sphere_2 &lt;- generate_points_on_sphere(n)</code></pre>
+<p>Let’s plot the points.</p>
+<pre class="r"><code>sphere_1_df &lt;-  sphere_1 %&gt;%  as_tibble(.name_repair = &quot;unique&quot;) %&gt;% 
+  rename(c(&quot;theta&quot;=&quot;...1&quot;,&quot;phi&quot;=&quot;...2&quot;))
+
+polar_to_cart(sphere_1_df$theta,sphere_1_df$phi) %&gt;% as_tibble(.name_repair = &quot;unique&quot;) %&gt;% 
+    rename(&quot;X&quot;=&quot;...1&quot;,&quot;Y&quot;=&quot;...2&quot;,&quot;Z&quot;=&quot;...3&quot;) %&gt;% 
+  pivot_longer(everything()) %&gt;% 
+  ggplot(aes(x=value))+geom_histogram(binwidth = .05)+
+  facet_wrap(.~name)+theme_bw()+
+  ggtitle(&quot;Distribution of points for X, Y, and Z coordinates&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p>The distribution of points on the sphere is much better! We now see that the there is a near uniform distribution for the various coordinates.</p>
+<pre class="r"><code>theta_1 &lt;- sphere_1[[1]]  ;theta_2 &lt;-  sphere_2[[1]]
+phi_1 &lt;- sphere_1[[2]]  ;phi_2 &lt;-  sphere_2[[2]]
+
+
+dist &lt;- mean(sqrt(2-2*(sin(phi_1)*sin(phi_2)*cos(theta_2-theta_1)+cos(phi_1)*cos(phi_2))))
+dist</code></pre>
+<pre><code>## [1] 1.335975</code></pre>
+<pre class="r"><code>simple_dist &lt;- mean(sqrt(2-2*(cos(phi_2))))
+simple_dist</code></pre>
+<pre><code>## [1] 1.332862</code></pre>
+<p>Both distance formulas give a similar answer. We will take the simplified expression purely because it is simple.</p>
+<p><span class="math display">\[
+\text{Estimated distance} = 1.332862
+\]</span></p>
+<p><span class="math display">\[
+\text{Actual distance} = \frac43 = 1.333\dots
+\]</span></p>
+<pre class="r"><code>(simple_dist-(4/3))/(4/3)*100</code></pre>
+<pre><code>## [1] -0.03532985</code></pre>
+<p><span class="math display">\[
+\text{Relative Percentage error with 100,000 points} =   -0.035\text{%}
+\]</span></p>
+<p>We obtain close results! The negative sign here means that the simulation actually underestimated the true value.</p>
+<p>For the full gory math derivation of the actual result of <span class="math inline">\(\frac43\)</span> see here<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a></p>
+</div>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>We have seen how to use a simulation to generate reasonable and accurate results. This lets us simulate things without needing to go through the maths, however we had to be careful of how were we were simulating points.</p>
+<p>There’s a lot more I want to explore, like what is the average area of a triangle inscribed on a circle or sphere? what about the average volume of a tetrahedron on a sphere? Many questions to ask but so little time…</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://www.youtube.com/watch?v=TFhKK6bWcYE" class="uri">https://www.youtube.com/watch?v=TFhKK6bWcYE</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://mathworld.wolfram.com/SpherePointPicking.html" class="uri">https://mathworld.wolfram.com/SpherePointPicking.html</a><a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Here we go!
+<span class="math display">\[
+\text{Average distance} = \frac{1}{S_A} \int_V \sqrt{(\Delta x)^2 +(\Delta y)^2 +(\Delta z)^2} \ dx \ dy \ dz
+\]</span>
+By converting the average distance into spherical coordinates and by noting that the surface area of a unit sphere is <span class="math inline">\(S_A = 4\pi r = 4\pi\)</span>. We obtain the following
+<span class="math display">\[
+\begin{align}
+\text{Average distance} &amp;= \frac{1}{S_A} \int_V \sqrt{(\Delta x)^2 +(\Delta y)^2 +(\Delta z)^2} \ dx \ dy \ dz,    \\
+&amp;= \frac{1}{4\pi} \int_0^\pi \int_0^{2\pi}  \sqrt{2-2\cos\phi} \ r^2 \sin\phi  \ d\theta \ d\phi, \\
+&amp;= \frac{1}{2\pi} \int_0^\pi \int_0^{2\pi}   \sin\frac{\phi}{2} \  \sin\phi  \ d\theta \ d\phi, \qquad \textit{using the identity: } 2\sin^2\alpha = 1 -\cos2\alpha  \\
+&amp;=   \frac{1}{2\pi} \bigg( \int_0^{2\pi} d\theta  \bigg) \bigg( \int_0^\pi  \sin\frac{\phi}{2} \  \sin\phi  \ d\phi \bigg), \\
+&amp;=    \int_0^\pi  \sin\frac{\phi}{2} \  \sin\phi  \ d\phi, \\
+&amp;= \frac{1}{2}   \int_0^\pi  \cos\frac{\phi}{2} - \cos\frac{3\phi}{2}  \ d\phi, \qquad \textit{using the identity: } \ 2\sin\alpha\sin\beta = \cos\big(\alpha-\beta\big) - \cos(\alpha+\beta)      \\
+&amp;=    \int_0^\frac{\pi}{2} \cos u - \cos 3u  \  \ du,   \qquad \textit{change of variables :} \  u = \frac{\phi}{2}  \\
+&amp;=    \bigg[  \sin u - \frac{1}{3} \sin 3u  \bigg]^\frac{\pi}{2}_0,  \\
+&amp;=    \bigg[  \sin \frac{\pi}{2} - \frac{1}{3} \sin \frac{3\pi}{2}  -   (\sin 0 - \frac{1}{3} \sin 0)   \bigg], \\
+&amp;=   \bigg[  \frac{4}{3}  + 0   \bigg], \\
+\text{Average distance} &amp;= \frac{4}{3}  \text{units} = 1.333 \dots \text{units}
+\end{align}
+\]</span><a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
