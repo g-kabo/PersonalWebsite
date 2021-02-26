@@ -1,0 +1,247 @@
+---
+title: The impact of the pandemic on US employment
+author: ''
+date: '2021-02-26'
+slug: []
+categories: []
+tags:
+  - Tidy Tuesday
+  - data exploration
+description: ''
+topics: []
+---
+
+<script src="index_files/header-attrs/header-attrs.js"></script>
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+
+
+<p>This blogpost will look at the <code>2021-02-23</code> edition of Tidy Tuesday. There are two datasets to explore; <code>employed</code> and <code>earn</code>, we will explore <code>employed</code> first and look at the second later in this post - they both deal with the number of people employed, broken down in several ways; in the case of <code>employed</code>, the number is broken down by industry, sex and race, whereas the <code>earn</code> dataset breaks down employment numbers by age, sex and race.</p>
+<p>We are interested in the effects the Covid-19 pandemic has had on employment numbers across different industries and demographics.</p>
+<div id="employmed-dataset" class="section level1">
+<h1>Employmed dataset</h1>
+<p>We will start off by looking at the <code>employed</code> dataset.</p>
+<pre class="r"><code>library(tidyverse)
+library(zoo) # for dealing with quarterly data
+
+
+employed &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-23/employed.csv&#39;)
+
+employed &lt;-  employed %&gt;% 
+  na.omit() %&gt;% 
+    mutate(industry =  str_replace_all(industry,&quot;\r\n&quot;,&quot; &quot;),
+           minor_occupation = str_remove_all(minor_occupation,&quot;-&quot;),
+           category = case_when( race_gender == &quot;TOTAL&quot; ~ &quot;Total&quot;,
+                                  race_gender %in% c(&quot;Men&quot;,&quot;Women&quot;) ~ &quot;Gender&quot;,
+                                  race_gender %in%  c(&quot;Asian&quot;,&quot;Black or African American&quot;,&quot;White&quot;) ~ &quot;Race&quot;))</code></pre>
+<pre class="r"><code>employed %&gt;%  
+  filter(category == &quot;Total&quot;,
+         year %in% c(2019,2020)) %&gt;% 
+  select(industry,industry_total,year) %&gt;% 
+  mutate(year = as.factor(year)) %&gt;% 
+  unique() %&gt;% 
+  ggplot(aes(x=year,y=industry_total,fill=year))+
+  geom_col(show.legend = FALSE)+
+  geom_text(aes(label= scales::number(industry_total,scale = 1e-6,accuracy = .1 ) ),vjust=-0.1 )+
+  scale_y_continuous(limits=c(0,4.5e7), expand=c(0,NA),labels = scales::number_format(scale=1e-6,suffix = &quot;m&quot;))+
+  facet_wrap(.~industry ,labeller = label_wrap_gen(width=20,multi_line = TRUE) )+
+  scale_fill_brewer(palette=&quot;Dark2&quot;,direction = 1)+
+  labs(title=&quot;There has been a major fall in the number of people employed in the US across many industries&quot;,
+       subtitle = &quot;Number of employed workers by industry in 2019 and 2020&quot;,
+       x=&quot;Year&quot;,y=&quot;Number of employed workers\n(millions)&quot;)+
+  theme_bw()+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-3-1.png" width="1152" /></p>
+<p>Across many industries, there has been a fall in the number of people employed from 2019 to 2020.</p>
+<p>If we want to see which industries were hurt the most by the pandemic, we should look at the percent change.</p>
+<pre class="r"><code>employed %&gt;%  
+  filter(category == &quot;Total&quot;,
+         year %in% c(2019,2020)) %&gt;% 
+  select(industry,industry_total,year) %&gt;% 
+  unique() %&gt;% 
+  group_by(industry) %&gt;% 
+  pivot_wider(names_from = year,values_from = industry_total,names_prefix = &quot;y&quot;) %&gt;% 
+  mutate( pct_change =  (y2020-y2019)/y2019) %&gt;% 
+  ggplot(aes(x=pct_change,y=reorder(industry,pct_change)))+
+ geom_point(aes(size=y2019))+
+  geom_linerange(aes(xmin = 0, xmax = pct_change))+
+  geom_vline(xintercept = 0,lty=2,size=1)+
+  scale_size_continuous(labels = scales::number_format(scale = 1e-6,accuracy = 1,suffix = &quot;m&quot;))+
+  scale_x_continuous(labels=scales::percent_format(accuracy = 1))+
+  labs(title=&quot;The Leisuire and hospitality industry saw a 20% decrease in employment in 2020&quot;,
+       subtitle = &quot;Percent change of employment by industry from 2019 to 2020&quot;,
+       x=&quot;Percent change&quot;,y=&quot;&quot;,size=&quot;Employed\nin 2019\n(millions)&quot;)+
+  theme_light()+
+  theme(plot.title.position = &quot;plot&quot;, 
+        panel.grid.minor.x = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>We see that the industry with the biggest relative reduction in employment is the Leisure and hospitality industry. They saw a drop over 20% in 2020 when compared to 2019.</p>
+<p>Of the industries that saw a decrease - they dropped, on average, by 7.6%.</p>
+<p>Interestingly, there was an increase in the number of people working in the Public administration industry, but this was below a 5% increase.</p>
+<p>Let’s look at the breakdown by gender</p>
+<pre class="r"><code>employed %&gt;% 
+     filter(category == &quot;Gender&quot;,
+            year %in% c(2019,2020)) %&gt;% 
+ select(industry,industry_total,race_gender,year) %&gt;% 
+  unique() %&gt;% 
+  group_by(industry) %&gt;% 
+  pivot_wider(names_from = year,values_from = industry_total,names_prefix = &quot;y&quot;) %&gt;% 
+  mutate( pct_change =  (y2020-y2019)/y2019) %&gt;% 
+  ungroup() %&gt;% 
+  mutate( industry = fct_rev(industry) ) %&gt;% 
+  ggplot(aes(x=pct_change,y=industry ))+
+      geom_linerange(aes(xmin = 0, xmax = pct_change,group=race_gender), 
+                   position = position_dodge(width = .5))+
+  geom_point(aes(col=race_gender,group=race_gender,size=y2019), 
+                   position = position_dodge(width = .5))+
+  geom_vline(xintercept = 0,lty=1,size=1)+
+    geom_vline( . %&gt;%  ungroup() %&gt;% group_by(race_gender) %&gt;% 
+                summarise(avg_pct_change  = mean(pct_change),.groups = &quot;drop&quot;),
+              mapping=aes(xintercept=avg_pct_change,col=race_gender),lty=1,size=2,alpha=0.2)+
+  scale_x_continuous(labels=scales::percent_format(accuracy = 1))+
+  scale_size_continuous(labels = scales::number_format(scale = 1e-6,accuracy = 1,suffix = &quot;m&quot;))+
+  scale_color_manual(values = c(&quot;Men&quot;=&quot;navy&quot;,
+                                &quot;Women&quot;=&quot;maroon1&quot;))+
+  guides(size=guide_legend(order=2,title=&quot;Employed\nin 2019\n(millions)&quot;),color=guide_legend(order=1,title = &quot;Gender&quot;)  )+
+  labs(title=&quot;Job losses for men and women differed by Industry&quot;,
+       subtitle = &quot;Percent change of employment by gender and industry from 2019 to 2020.\nThe shaded bars show the average percentage change&quot;,
+       x=&quot;Percent change&quot;,y=&quot;&quot;,fill = &quot;Percent\nchange&quot;)+
+  theme_light()+
+  theme(plot.title.position = &quot;plot&quot;, 
+        panel.grid.minor.x = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Now we can see a further breakdown by gender, and see that job losses by industry were not the same for both genders. For example, women faced relatively more job loses than men in the Leisure and hospitality industry, as well as in Private households. Another example is that men saw a drop in employment in the Wholesale trade industry, whereas women saw an increase.</p>
+<pre class="r"><code>employed %&gt;% 
+  filter(category == &quot;Race&quot;,
+         year %in% c(2019,2020)) %&gt;% 
+  select(industry,industry_total,race_gender,year) %&gt;% 
+  unique() %&gt;% 
+  group_by(industry) %&gt;% 
+  pivot_wider(names_from = year,values_from = industry_total,names_prefix = &quot;y&quot;) %&gt;% 
+  mutate( pct_change =  (y2020-y2019)/y2019) %&gt;% 
+  ggplot(aes(x=pct_change,y=industry ))+
+  geom_linerange(aes(y = industry, xmin = 0, xmax = pct_change,group=race_gender), 
+                 position = position_dodge(width = .5))+
+  geom_point(aes(col=race_gender,group=race_gender,size=y2019), 
+             position = position_dodge(width = .5))+
+  geom_vline(xintercept = 0,lty=1,size=1)+
+  geom_vline( . %&gt;%  ungroup() %&gt;% group_by(race_gender) %&gt;% 
+                summarise(avg_pct_change  = mean(pct_change),.groups = &quot;drop&quot;),
+              mapping=aes(xintercept=avg_pct_change,col=race_gender),lty=1,size=2,alpha=0.2)+
+  geom_text( . %&gt;%  ungroup() %&gt;% group_by(race_gender) %&gt;% 
+               summarise(avg_pct_change  = mean(pct_change),.groups = &quot;drop&quot;)
+             ,mapping=aes(label=paste0(&quot;Average\npercent\nchange:\n&quot;,scales::percent(avg_pct_change,accuracy = .1)),y=16,x=-.22 ),size=3)+
+  scale_x_continuous(labels=scales::percent_format(accuracy = 1))+
+  scale_size_continuous(labels = scales::number_format(scale = 1e-6,accuracy = 1,suffix = &quot;m&quot;))+
+  scale_y_discrete(limits=rev)+
+  guides(size=guide_legend(order=1,title=&quot;Employed\nin 2019\n(millions)&quot;),color=FALSE  )+
+  facet_wrap(.~race_gender)+
+  labs(title=&quot;Black Americans had a higher job loss percentage than White Americans&quot;,
+       subtitle = &quot;Percent change of employment by race and industry from 2019 to 2020&quot;,
+       x=&quot;Percent change&quot;,y=&quot;&quot;,fill = &quot;Percent\nchange&quot;)+
+  theme_bw()+
+  theme(plot.title.position = &quot;plot&quot;, 
+        panel.grid.minor.x = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" width="960" /></p>
+<p>By breaking down the changes by race, we see that more racers were more disproportionately impacted that others. Here Asians suffered an average 5% drop in employment numbers, whereas Blacks suffered an average drop of 8.4%. Whites were in the middle with an average 6.7% drop.</p>
+<p>It is also interesting to see the differences between the races across industries. For example, in the Financial activities industry, Asians suffered a drop but Blacks and Whites saw an increase within the industry.</p>
+<p>While Blacks were the most harshly impacted on average, they actually saw job growth in two industries namely, Agriculture and Public administration. whites only saw job growth in Public administration.</p>
+</div>
+<div id="earnings-dataset" class="section level1">
+<h1>Earnings dataset</h1>
+<p>We now move onto the second dataset in this week’s Tidy Tuesday.</p>
+<p>The <code>earn</code> dataset shows the earnings and number of people employed by various groups such as sex, race, and age over the previous decade by quarter. The variables of most interest to us are the number of people employed, as the earnings, which is taken as the median weekly salary, generally increases over time. We can study the effects the pandemic has had on employment across the different demographics.</p>
+<pre class="r"><code>earn &lt;- readr::read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-23/earn.csv&#39;)
+
+earn &lt;-  earn %&gt;% 
+  mutate(quarter = as.factor(quarter),
+        year_quart  = as.yearqtr(paste(year,quarter,sep=&quot;-&quot;)), 
+         binned_age = case_when(  age %in% c(&quot;16 to 19 years&quot;,&quot;20 to 24 years&quot;,&quot;25 to 34 years&quot;,
+                                              &quot;35 to 44 years&quot;,&quot;45 to 54 years&quot;,&quot;55 to 64 years&quot;,
+                                              &quot;65 years and over&quot;) ~ &quot;small bin&quot;,
+                                   age %in% c(&quot;16 to 24 years&quot;,&quot;25 to 54 years&quot;,&quot;55 years and over&quot;) ~ &quot;large bin&quot;,
+                                   TRUE ~ &quot;none&quot;)
+          )</code></pre>
+<pre class="r"><code>earn %&gt;% 
+  filter(binned_age == &quot;small bin&quot;,
+         sex == &quot;Both Sexes&quot;,
+         year %in% c(2019,2020) )%&gt;% 
+  ggplot(aes(x=quarter,y=median_weekly_earn,group=year, fill=as.factor(year) ))+
+  geom_col(position = position_dodge())+
+  scale_fill_brewer(palette=&quot;Paired&quot;)+
+  scale_y_continuous(labels=scales::dollar_format(),expand = c(0,NA),limits = c(0,1.2e3), breaks = seq(0,2000,250))+
+  facet_wrap(.~age, nrow=1)+
+  labs(title=&quot;The median weekly salaries by age group, quarter, and year&quot;,
+       x=&quot;Quarter&quot;,y=&quot;Median Weekly Earnings ($)&quot;,fill=&quot;Year&quot;)+
+  theme_bw()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" width="960" /></p>
+<p>We see that salaries generally peak around the 35-54 age range, which is to be expected, however the most important thing to notice here is the change in median salary across different age groups in 2020. Of note we see that for age groups younger than 55, the median weekly salary saw a decrease during 2020 from Q2. Age groups older than 55 inclusive, saw a gradual increase in their median weekly salary.</p>
+<p>This is significant as if we compare the quarterly change in salary during 2019, we see that the Q4 salary was higher than most other quarters for all age groups.</p>
+<p>Let’s now look at the change from year to year in employment for different races, ages, and sexes.</p>
+<pre class="r"><code>earn %&gt;% filter( race != &quot;All Races&quot;,
+                 sex != &quot;Both Sexes&quot;,
+                 binned_age == &quot;large bin&quot;,
+                 year_quart &gt;= &quot;2018 Q4&quot;) %&gt;% 
+  group_by(race,sex,age,quarter) %&gt;% 
+  summarise(persons_change =  (last(n_persons)-first(n_persons))/first(n_persons),.groups = &quot;drop&quot;) %&gt;% 
+  ggplot(aes(x=quarter,y=persons_change,group=sex,col=sex))+
+  geom_hline(yintercept = 0,lty=2)+
+  geom_point()+
+  geom_line()+
+  facet_grid(age~race,scales = &quot;fixed&quot;)+
+  scale_color_manual(values = c(&quot;Men&quot;=&quot;navy&quot;,
+                                &quot;Women&quot;=&quot;maroon1&quot;))+
+  scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
+  labs(title=&quot;The second quarter of 2020 saw the biggest drop in employment numbers&quot;,
+       subtitle= &quot;Year-to-Year percent change in employment numbers from 2019 to 2020 by quarter&quot;,
+       x=&quot;Quarter&quot;,y=&quot;Employment number percent change (%)&quot;)+
+  theme_bw()+
+  theme(plot.title.position = &quot;plot&quot;,
+        panel.grid.minor.y = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="960" /></p>
+<p>This graph compares the year-to-year difference of each quarter in 2019 and 2020. We see that Q2 had the biggest drop across all demographics. This was obviously when the pandemic took hold in the US. But generally speaking, employment numbers were lower in 2020 that in 2019.</p>
+<p>We also notice that the 16-24 age group saw the biggest drop in employment.</p>
+<p>Next we can see the quarter-to-quarter difference in employment.</p>
+<pre class="r"><code>earn %&gt;% filter( race != &quot;All Races&quot;,
+                 sex != &quot;Both Sexes&quot;,
+                 binned_age == &quot;large bin&quot;,
+                 year_quart &gt;= &quot;2018 Q4&quot;) %&gt;% 
+  mutate(  yr_qrtr =(paste0(year,&quot; Q&quot;,quarter))) %&gt;% 
+  group_by(age,sex,race) %&gt;% 
+  mutate( prev_persons = lag(n_persons),
+          prev_earn = lag(median_weekly_earn),
+          qtr_persons_change = (n_persons-prev_persons)/prev_persons,
+          qtr_earn_change = (median_weekly_earn-prev_earn)/prev_earn,
+          row_id = row_number(),
+          yr_qrtr =(paste0(year,&quot; Q&quot;,quarter))) %&gt;%
+  ungroup() %&gt;% na.omit() %&gt;% 
+  ggplot(aes(x=year_quart,y=qtr_persons_change,group=sex,col=sex))+
+  geom_point()+
+  geom_line() +
+  geom_hline(yintercept = 0,lty=2,col=&quot;grey60&quot;)+
+  facet_grid(age~race,scales = &quot;fixed&quot;)+
+  scale_color_manual(values = c(&quot;Men&quot;=&quot;navy&quot;,
+                                &quot;Women&quot;=&quot;maroon1&quot;))+
+  scale_y_continuous(labels=scales::percent_format())+
+  scale_x_yearqtr(format = &quot;Q%q\n%y&quot;)+
+  labs(title=&quot;The 2020 Q1-Q2 change saw drops in employments across all demographics&quot;,
+       subtitle= &quot;Quarter-to-Quarter percent change in employment numbers from 2019 to 2020&quot;,
+       x=&quot;Year Quarter&quot;,y=&quot;Employment number percent change (%)&quot;)+
+  theme_bw()+
+  theme(plot.title.position = &quot;plot&quot;,
+        panel.grid.minor.y = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" width="960" /></p>
+<p>Now by looking at the quarter-to-quarter change, we see that all demographics saw a drop in 2020 Q2. We see that people aged 16-24 saw the biggest drops for all age groups. The 25-54 age group has the most stable employment change, with the exception of 2020 Q2.</p>
+<p>The Asian demography saw lots more variability in the percentage change than other races.</p>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>Overall we have found some interesting piece of information:</p>
+<ul>
+<li><p>The Leisure and hospitality industry saw a 20% decrease in the number of people employed in 2020 from 2019.</p></li>
+<li><p>Women saw the biggest drop in employment on average out of the two genders, while Blacks were the most hard hit race by unemployment.</p></li>
+<li><p>All demographics saw a decrease in employment from Q1 to Q2 of 2020.</p></li>
+</ul>
+</div>
