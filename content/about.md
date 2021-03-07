@@ -7,10 +7,8 @@ title: About
 
 Hi! 
 
-My name is Gurpreet, I hold a Masters degree in Mathematics, and this is my blog about anything related to data. 
+My name is Gurpreet, I hold a Masters degree in Mathematics and am currently unemployed, and this is my blog about anything related to data. 
 
 I will mainly be focusing on using R to explore various datasets.
-
-I also hope to fill out this section in the future.
 
 Thanks for reading!
