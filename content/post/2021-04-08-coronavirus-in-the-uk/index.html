@@ -1,0 +1,191 @@
+---
+title: Covid Deaths in the UK
+author: ''
+date: '2021-04-08'
+tags:
+  - data exploration
+---
+
+<script src="index_files/header-attrs/header-attrs.js"></script>
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+
+
+<p>This post will be taking a short look at the effects of coronavirus in the UK. Mainly we will be looking at the deaths and a few hospital statistics to see what has happened.</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre class="r"><code>weekly_deaths &lt;-  read_csv(here::here(&quot;static/data/UK covid deaths weekly.csv&quot;)) %&gt;% 
+  janitor::clean_names() %&gt;% 
+  mutate(date = as.Date(date , format = &quot;%d-%b-%y&quot;) )
+
+glimpse(weekly_deaths)</code></pre>
+<pre><code>## Rows: 585
+## Columns: 2
+## $ date   &lt;date&gt; 2010-01-08, 2010-01-15, 2010-01-22, 2010-01-29, 2010-02-05,...
+## $ deaths &lt;dbl&gt; 12968, 12541, 11762, 11056, 10524, 10117, 10102, 10295, 9981...</code></pre>
+<p>We can look at the number of registered deaths in England and Wales. The data comes from the Office of National Statistics. First we can see that the median number of deaths is 9,711 deaths per week.</p>
+<pre class="r"><code>weekly_deaths %&gt;% 
+  ggplot(aes(x=deaths))+
+  geom_histogram(binwidth = 500,fill=&quot;firebrick3&quot;)+
+  geom_vline(xintercept =   median(weekly_deaths$deaths), lty=2,size=1 )+
+  annotate(geom=&quot;text&quot;,label=paste0(&quot;The median number\nof weekly deaths is: &quot;, scales::comma(median(weekly_deaths$deaths))) ,x = 12500,y=100  )+
+    annotate(geom=&quot;text&quot;,
+             label=paste0(&quot;The week with the\n highest number of recorded deaths \n occured in the week ending &quot;,
+                           format(weekly_deaths %&gt;% slice_max(order_by = deaths) %&gt;% pull(date), format = &quot;%d %B %Y&quot;) ,
+                          &quot;,\n reaching &quot;,  scales::comma(max(weekly_deaths$deaths)) ,&quot; deaths.&quot;) ,
+             x = 19000,y= 30 )+
+  scale_y_continuous(expand=c(0,0),limits = c(0,130))+
+  labs(title=&quot;Number of weekly deaths in the UK from Jan 2010 - March 2021&quot;,
+       x=&quot;Number of deaths&quot;,y=&quot;Count&quot;, caption=&quot;Source: ONS&quot;)+
+  theme_bw()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>We can also see how the number of deaths changed over the course of the year. January usually sees the highest death rates in the year, while Summer sees the lowest.</p>
+<pre class="r"><code>weekly_deaths %&gt;%
+  mutate(week = lubridate::week(date),
+         year = lubridate::year(date),
+         yday = lubridate::yday(date),
+           colour = case_when(year == 2020 ~ &quot;red&quot;,
+                            year == 2021 ~ &quot;orange&quot;,
+                            TRUE ~ &quot;grey70&quot;)   ) %&gt;% 
+  ggplot( aes(x=week,y=deaths,group=year,color = I(colour)))+
+  geom_line(size=1)+
+ # gghighlight::gghighlight(year %in% c(2020,2021) ,use_direct_label = TRUE,label_key = year,use_group_by = FALSE  )+
+  labs(title=&quot;Median registered deaths by week of year from 2010-2021&quot;,
+       subtitle = &quot;Red is 2020, Orange is 2021, and all other years are in grey&quot;,
+       x=&quot;Week of year&quot;,y=&quot;Registered Deaths&quot;, caption=&quot;Source: ONS&quot;)+
+  scale_y_continuous(labels = scales::comma_format())+
+  theme_light()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>We can also use polar coordinates to display the results to take advantage of the cyclic nature of the days during a year.</p>
+<pre class="r"><code> weekly_deaths %&gt;%
+  mutate(week = lubridate::week(date),
+         year = lubridate::year(date),
+         yday = lubridate::yday(date),
+         colour = case_when(year == 2020 ~ &quot;red&quot;,
+                            year == 2021 ~ &quot;orange&quot;,
+                            TRUE ~ &quot;grey70&quot;)   ) %&gt;% 
+  ggplot( aes(x= yday,y=deaths,group=year,color = I(colour)))+
+  geom_line(size=1) +
+#  gghighlight::gghighlight(year %in% c(2020,2021) ,use_direct_label = TRUE,label_key = year,use_group_by = FALSE  )+
+  labs(title=&quot;Median registered deaths by week of year from 2010-2021&quot;,subtitle = &quot;Red is 2020, Orange is 2021, and all other years are in grey&quot;
+       , caption=&quot;Source: ONS&quot;)+
+  coord_polar()+
+  annotate(geom =&quot;rect&quot;,xmin=1,xmax=31,ymin = -Inf,ymax=Inf,alpha=0.1,fill=&quot;grey50&quot;)+ #January
+  annotate(geom =&quot;rect&quot;,xmin=60,xmax=90,ymin = -Inf,ymax=Inf,alpha=0.1,fill=&quot;grey50&quot;)+ #March
+  annotate(geom =&quot;rect&quot;,xmin=121,xmax=151,ymin = -Inf,ymax=Inf,alpha=0.1,fill=&quot;grey50&quot;)+ #May
+  annotate(geom =&quot;rect&quot;,xmin=182,xmax=212,ymin = -Inf,ymax=Inf,alpha=0.1,fill=&quot;grey50&quot;)+ #July
+  annotate(geom =&quot;rect&quot;,xmin=244,xmax=273,ymin = -Inf,ymax=Inf,alpha=0.1,fill=&quot;grey50&quot;)+ #Sept
+  annotate(geom =&quot;rect&quot;,xmin=305,xmax=335,ymin = -Inf,ymax=Inf,alpha=0.1,fill=&quot;grey50&quot;)+ #Nov
+  annotate(geom=&quot;text&quot;,label=&quot;January&quot;,x=(31+1)/2,y=Inf,vjust=-1.5 )+ annotate(geom=&quot;text&quot;,label=&quot;February&quot;,x=(31+60)/2,y=Inf,vjust=-1.5 )+
+  annotate(geom=&quot;text&quot;,label=&quot;March&quot;,x=(60+90)/2,y=Inf,vjust=0 )+annotate(geom=&quot;text&quot;,label=&quot;April&quot;,x=(90+121)/2,y=Inf,hjust=-.1 )+
+  annotate(geom=&quot;text&quot;,label=&quot;May&quot;,x=(121+151)/2,y=Inf,vjust=1.5 )+ annotate(geom=&quot;text&quot;,label=&quot;June&quot;,x=(151+182)/2,y=Inf,vjust=1.5 )+
+  annotate(geom=&quot;text&quot;,label=&quot;July&quot;,x=(182+212)/2,y=Inf,vjust=1.5 )+ annotate(geom=&quot;text&quot;,label=&quot;August&quot;,x=(212+244)/2,y=Inf,vjust=1.5 )+
+  annotate(geom=&quot;text&quot;,label=&quot;September&quot;,x=(244+273)/2,y=Inf,hjust=.6 )+annotate(geom=&quot;text&quot;,label=&quot;October&quot;,x=(273+305)/2,y=Inf,vjust=0 )+
+  annotate(geom=&quot;text&quot;,label=&quot;November&quot;,x=(305+335)/2,y=Inf,vjust=-1.5 )+ annotate(geom=&quot;text&quot;,label=&quot;December&quot;,x=(335+365)/2,y=Inf,vjust=-1.5 )+
+  annotate(geom=&quot;text&quot;,label=&quot;10,000&quot;,x=0,y=11000)+  annotate(geom=&quot;text&quot;,label=&quot;15,000&quot;,x=0,y=16000)+annotate(geom=&quot;text&quot;,label=&quot;20,000&quot;,x=0,y=21000)+
+  geom_hline(yintercept = 10000,col=&quot;grey20&quot;)+  geom_hline(yintercept = 15000,col=&quot;grey20&quot;)+  geom_hline(yintercept = 20000,col=&quot;grey20&quot;)+
+  theme_void()+
+  theme()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<div id="effects-of-lockdown-on-various-statistics" class="section level1">
+<h1>Effects of Lockdown on various statistics</h1>
+<p>Let’s investigate how the different variables were affected in the period before, during and after lockdowns. Namely, we will look at:</p>
+<ul>
+<li><code>cases</code> - Number of cases per day</li>
+<li><code>deaths</code> - Number deaths per day</li>
+<li><code>h_admissions</code> - Number of admissions to hospitals per day</li>
+<li><code>h_stays</code> - Number of patients staying at hospitals per day</li>
+<li><code>beds</code> - Number of beds used in hospitals per day</li>
+</ul>
+<p>The data comes from Public Health England.</p>
+<pre class="r"><code># Helper function to read in json data
+get_data_json &lt;-  function(url){
+  
+ raw_result &lt;- httr::GET(url)
+ result &lt;-  httr::content(raw_result, as = &quot;text&quot;) %&gt;%
+  jsonlite::fromJSON() 
+  
+ return(result$data)
+}</code></pre>
+<pre class="r"><code>url &lt;-  &quot;https://coronavirus.data.gov.uk/api/v1/data?filters=areaType=overview&amp;structure=%7B%22areaType%22:%22areaType%22,%22areaName%22:%22areaName%22,%22areaCode%22:%22areaCode%22,%22date%22:%22date%22,%22newCasesByPublishDate%22:%22newCasesByPublishDate%22,%22cumCasesByPublishDate%22:%22cumCasesByPublishDate%22%7D&amp;format=json&quot;
+cases &lt;-  get_data_json(url) %&gt;% 
+  select(4,cases = 5)
+
+url &lt;- &quot;https://coronavirus.data.gov.uk/api/v1/data?filters=areaType=overview&amp;structure=%7B%22areaType%22:%22areaType%22,%22areaName%22:%22areaName%22,%22areaCode%22:%22areaCode%22,%22date%22:%22date%22,%22newDeaths28DaysByDeathDate%22:%22newDeaths28DaysByDeathDate%22,%22cumDeaths28DaysByDeathDate%22:%22cumDeaths28DaysByDeathDate%22%7D&amp;format=json&quot;
+deaths &lt;- get_data_json(url) %&gt;% 
+  select(4,deaths = 5)
+ 
+url &lt;- &quot;https://coronavirus.data.gov.uk/api/v1/data?filters=areaType=overview&amp;structure=%7B%22areaType%22:%22areaType%22,%22areaName%22:%22areaName%22,%22areaCode%22:%22areaCode%22,%22date%22:%22date%22,%22covidOccupiedMVBeds%22:%22covidOccupiedMVBeds%22%7D&amp;format=json&quot;
+beds &lt;- get_data_json(url) %&gt;% 
+  select(4,beds=5)
+
+url &lt;-  &quot;https://coronavirus.data.gov.uk/api/v1/data?filters=areaType=overview&amp;structure=%7B%22areaType%22:%22areaType%22,%22areaName%22:%22areaName%22,%22areaCode%22:%22areaCode%22,%22date%22:%22date%22,%22newAdmissions%22:%22newAdmissions%22,%22cumAdmissions%22:%22cumAdmissions%22%7D&amp;format=json&quot;
+h_admissions &lt;-  get_data_json(url) %&gt;% 
+  select(4,h_admissions=5)
+
+url&lt;-  &quot;https://coronavirus.data.gov.uk/api/v1/data?filters=areaType=overview&amp;structure=%7B%22areaType%22:%22areaType%22,%22areaName%22:%22areaName%22,%22areaCode%22:%22areaCode%22,%22date%22:%22date%22,%22hospitalCases%22:%22hospitalCases%22%7D&amp;format=json&quot;
+h_stays &lt;-  get_data_json(url) %&gt;% 
+  select(4,h_stays=5)
+
+uk_covid &lt;-  full_join(cases,deaths,by=&quot;date&quot;) %&gt;% 
+  full_join(beds,by=&quot;date&quot;) %&gt;% 
+  full_join(h_admissions,by=&quot;date&quot;) %&gt;% 
+  full_join(h_stays,by=&quot;date&quot;) %&gt;% 
+  mutate( date = as.Date(date))
+
+glimpse(uk_covid)</code></pre>
+<pre><code>## Rows: 434
+## Columns: 6
+## $ date         &lt;date&gt; 2021-04-07, 2021-04-06, 2021-04-05, 2021-04-04, 2021-...
+## $ cases        &lt;int&gt; 2763, 2379, 2762, 2297, 3423, 3402, 4479, 4052, 4040, ...
+## $ deaths       &lt;int&gt; NA, 5, 8, 12, 18, 15, 24, 33, 34, 30, 30, 35, 45, 43, ...
+## $ beds         &lt;int&gt; NA, NA, NA, 469, 477, 485, 517, 547, 568, 583, 582, 59...
+## $ h_admissions &lt;int&gt; NA, NA, NA, NA, NA, NA, NA, NA, 256, 249, 273, 268, 30...
+## $ h_stays      &lt;int&gt; NA, NA, NA, NA, NA, NA, 3536, 3726, 3962, 4185, 4175, ...</code></pre>
+<pre class="r"><code>lockdown_ann &lt;-  function(start_date,end_date,fill=&quot;orange&quot;,text=FALSE,label=label,vjust=1,size=3){
+  # Helper function to create annotations for plots
+  if (text == FALSE){
+    annotate(geom=&quot;rect&quot;,xmin= start_date , xmax = end_date , ymin= -Inf, ymax = Inf ,alpha=0.2, fill=fill) 
+  }
+  else{annotate(geom=&quot;text&quot;,x= (start_date-end_date )/2 + end_date,
+                y=Inf,
+                label=label,vjust=vjust,alpha=0.5,size=size)
+  }
+}
+
+lockdown_1_start &lt;- as.Date(&quot;2020-03-23&quot;) 
+lockdown_1_end &lt;-  as.Date(&quot;2020-05-10&quot;)
+
+lockdown_2_start &lt;- as.Date(&quot;2020-11-05&quot;)
+lockdown_2_end &lt;-  as.Date(&quot;2020-12-02&quot;)
+
+lockdown_3_start &lt;- as.Date(&quot;2021-01-5&quot;) 
+lockdown_3_end  &lt;-  min(as.Date(&quot;2021-06-21&quot;),Sys.Date()) 
+
+lockdown_1 &lt;-  lockdown_ann(lockdown_1_start ,lockdown_1_end)
+lockdown_1_text &lt;-  lockdown_ann(lockdown_1_start ,lockdown_1_end,text=TRUE,label=&quot;1st\nLockdown&quot;)
+
+lockdown_2 &lt;-  lockdown_ann(lockdown_2_start,lockdown_2_end)
+lockdown_2_text &lt;-  lockdown_ann(lockdown_2_start,lockdown_2_end,text=TRUE,label=&quot;2nd\nLockdown&quot;)
+
+lockdown_3 &lt;-  lockdown_ann(lockdown_3_start,lockdown_3_end)
+lockdown_3_text &lt;-  lockdown_ann(lockdown_3_start,lockdown_3_end,text=TRUE,label=&quot;3rd\nLockdown&quot;)</code></pre>
+<pre class="r"><code>uk_covid %&gt;% pivot_longer(cols=2:6) %&gt;% 
+  ggplot(aes(x=date,y=value,col=name))+
+  geom_point()+geom_line()+
+  facet_wrap(.~name,scales=&quot;free&quot;,ncol=2)+
+  scale_y_continuous(labels=scales::comma_format())+
+  scale_x_date(date_breaks = &quot;4 weeks&quot;,labels = scales::label_date_short())+
+  scale_color_brewer(palette=&quot;Dark2&quot;)+
+  labs(title=&quot;The effects of lockdowns on various statistics&quot;,
+       x=&quot;&quot;,y=&quot;&quot;,  caption=&quot;Source: Public Health England&quot;)+
+  lockdown_1+lockdown_1_text+
+  lockdown_2+lockdown_2_text+
+  lockdown_3+lockdown_3_text+
+  theme_bw()+
+  theme(legend.position = &quot;none&quot;,
+        panel.grid.minor.y = element_blank())</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="1152" /></p>
+<p>It should be noted that for <code>cases</code>, the true number of cases are unknown in the period from the start of the duration to around June 2020. This is because wide testing was not available and hence the numbers in the period are an underestimation of the true number of cases in the population.</p>
+<p>It it interesting to see the effects of lockdown on the various statistics, for example during lockdowns, the number of people admitted to hospital, staying in hospital, and or using beds reaches a peak, and then steadily decreases over the the course of the lockdown.</p>
+<p>Looking further at the data around the period of the second lockdown, it appears that it was too early to ease lockdown restrictions as only a month later from the easing of the second lockdown restrictions, a third lockdown was enforced.</p>
+</div>
