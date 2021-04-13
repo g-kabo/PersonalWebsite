@@ -115,12 +115,12 @@ tier4_text &lt;- lockdown_ann(tier_4_start,tier_4_end,text=TRUE,label=&quot;Tier
 <p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="768" /></p>
 <p>We see the usage of the transport services as a percent change of the previous year. To interpret this, as an example, on the 19th July 2020, the percent change for the tube was -75%, meaning that day saw only 25% of the number of people using the tube from 2019 in 2020 on that specific day.</p>
 <ul>
-<li><p>From the trend of the graph TfL services saw a drop in passenger numbers using the tube or buses. Even before the first lockdown, it is evident that more and more people were not using those services.</p></li>
+<li><p>From the trend of the graph, TfL services saw a drop in passenger numbers using the tube or buses. Even before the first lockdown, it is evident that more and more people were not using those services.</p></li>
 <li><p>During the first lockdown, and in the first half of lockdown for buses, the change from the previous year remained relatively constant - there is some variation due to the weekday/weekend effect.</p></li>
-<li><p>As the first lockdown ends the numbers start to recover somewhat from late Spring to mid Summer.From the end of August to the beginning of the second lockdown, the average value is constant before seeing a jump in usage immediately before the 2nd lockdown. Once the lockdown is underway, the percentage change drops.</p></li>
-<li><p>There is a brief recovery as the 2nd lockdown is eased, however it is short-lived as London is once again forced into restrictions by being placed at tier 3, while then being upgraded to the worse tier 4 level only a few day days. Tier 4 is essentially a lockdown, but on a local level rather than a national one. The restrictions led to a decline in passenger numbers from the same time last year.</p></li>
+<li><p>As the first lockdown ends the numbers start to recover somewhat from late Spring to mid Summer. From the end of August to the beginning of the second lockdown, the average value is constant before seeing a jump in usage immediately before the 2nd lockdown. Once the lockdown is underway, the percentage change drops.</p></li>
+<li><p>There is a brief recovery as the 2nd lockdown is eased, however it is short-lived as London is once again forced into restrictions by being placed at tier 3, while then being upgraded to the worse tier 4 level only a few day later. Tier 4 is essentially a lockdown, but on a local level rather than a national one. The restrictions led to a decline in passenger numbers from the same time last year.</p></li>
 </ul>
-<p>We can compare how the passengers numbers changed from the baseline during the two lockdowns, in particular, the numbers changing during the weekday and weekends. It is important to do this as the behaviour and movement of people is influenced by the day of week; a simple example is many people travelling to work on Monday to Friday, but not Saturday or Sunday.</p>
+<p>We can compare how the passengers numbers changed from the baseline during the two lockdowns, in particular, the numbers changing during the weekday and weekends. It is important to do this as the behaviour and movement of people is influenced by the day of week; a simple example is that many people travelling to work on Monday to Friday, but not Saturday or Sunday.</p>
 <pre class="r"><code>transport %&gt;% 
   mutate( lockdown =  case_when(date &gt;= lockdown_1_start &amp;  date &lt;= lockdown_1_end   ~ &quot;1st Lockdown&quot;,
                                 date &gt;= lockdown_2_start  &amp;  date &lt;= lockdown_2_end    ~ &quot;2nd Lockdown&quot;,
@@ -310,16 +310,16 @@ all_mobility %&gt;%
   )+
   geom_text(data = ann_text,aes(label=label),vjust=1.2,col=&quot;black&quot;,alpha=0.6,size=3)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="768" /></p>
-<p>We can interpret the plot as the following: For transit stations on the 11th March, the percent change was -75% from the baseline value. This means that the number of people at the park only 25% of the day of week average in the period 3rd Jan - 6 Feb 2020.</p>
+<p>We can interpret the plot as the following: For transit stations on the 11th March, the percent change was -75% from the baseline value. This means that the number of people at the park was only 25% of the day of week average in the period 3rd Jan - 6 Feb 2020.</p>
 <p>There are interesting pieces of information here. First I will state the obvious.</p>
 <ul>
 <li><p>People were staying at home much more regularly than they did before the pandemic - but it’s not like they had any choice.</p></li>
-<li><p>There was an element of panic buying before the first lockdown, where the number of people spent at groceries and pharmacies was around 30% higher than the baseline average for the population of London. There has been a steady increase since the first lockdown, but the numbers at these locations has never fully recovered to pre-pandemic levels, except for Christmas holiday season.</p>
-<p>This exception is likely due to London being placed on into tier 4 during Christmas, which forced individuals to celebrate Christmas with fewer people, thereby leading to a slight increase in visits to supermarkets as more people are buying food for their own Christmas party.</p></li>
+<li><p>There was an element of panic buying before the first lockdown, where the number of people at groceries and pharmacies was around 30% higher than the baseline average for the population of London. There has been a steady increase since the first lockdown, but the numbers at these locations has never fully recovered to pre-pandemic levels, except for Christmas holiday season.</p>
+<p>This exception is likely due to London being placed into tier 4 during Christmas, which forced individuals to celebrate Christmas with fewer people, thereby leading to a slight increase in visits to supermarkets as more people are buying food for their own Christmas party.</p></li>
 <li><p>Parks remained slightly quieter than usual during the two lockdowns, but during Summer, a huge number of people visited parks, with a 150% increase seen on the 25th of May - but this was mainly due to better weather during Summer and the fact it was a Bank Holiday.</p></li>
 <li><p>Retail and Recreation took a severe blow when the lockdowns were enforced. The first lockdown saw a 75% drop in the number of people at these locations when compared to the baseline.</p>
-<p>The effects of the “Eat Out to Help Out” scheme are visible during August; where the price of food at restaurants was discounted on certain days of the week, on behalf of the Government, in an effort to get people to get out and build some confidence in returning some form of normality and to support businesses. Here We see much more variation in the rate of people visiting restaurants. But as the scheme ended by September, so did the flow of people eating out. Since the end of August, there has been a steady decrease at the rate of people visiting restaurants.</p>
-<p>There was a spike before the second lockdown before the average percent change decrease to about 63% from the baseline. There was a brief recovery after the second lockdown, but the percent change steadly declined for the rest of the year.</p></li>
+<p>The effects of the “Eat Out to Help Out” scheme are visible during August; where the price of food at restaurants was discounted on certain days of the week, on behalf of the Government, in an effort to get people to get out and build some confidence in returning some form of normality and to support businesses. Here we see much more variation in the rate of people visiting restaurants. But as the scheme ended by September, so did the flow of people eating out. Since the end of August, there has been a steady decrease at the rate of people visiting restaurants.</p>
+<p>There was a spike before the second lockdown, but after this lockdown the average percent change decreased to about 63% from the baseline. There was a brief recovery after the second lockdown, but the percent change steadily declined for the rest of the year.</p></li>
 <li><p>For transit stations, we see confirmation of what we witnessed earlier where the number of people using public transport was reduced from pre-pandemic levels.</p></li>
 <li><p>Workplaces were emptied during the first lockdown but recovered slowly to just over 75% of what they were. The second lockdown saw an increase in the number of people at the workplace when compared to the first lockdown, namely from around 30% it increased to 55%.</p></li>
 </ul>
@@ -508,8 +508,8 @@ Workplaces
   theme()</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
 <p>We clearly see that trends from the first lockdown to the second, where for all locations, expect for residential places, there were more people visiting them in the second lockdown than in the first. While the time spent at home is greater than the baseline during the second lockdown, it fell when compared to the first lockdown. This meant people were spending less time at home for the second lockdown than the first.</p>
-<p>Essentially, the trend appears to suggest that Londoner are going back to pre-pandemic behaviour. Is this a hint of lockdown fatigue?</p>
-<p>As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisors, that people are not adhering to the rules as much. Perhaps some in another blog post I will look to see the differences between the 3 lockdowns.</p>
+<p>Essentially, the trend appears to suggest that Londoners are going back to their pre-pandemic behaviour. Is this a hint of lockdown fatigue or a sign of adjusting to the times?</p>
+<p>As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisors, that people are not adhering to the rules as much. Perhaps in another blog post I will look to see the differences between the 3 lockdowns.</p>
 <p>For now let’s view the average weekly trend.</p>
 <pre class="r"><code>ann_text &lt;-  data.frame(name=&quot;Parks&quot;,
                         date= as.Date(c(&quot;2020-04-16&quot;,&quot;2020-11-18&quot;,&quot;2020-12-27&quot;,&quot;2020-08-09&quot;)  ),
@@ -681,7 +681,7 @@ full_london_viz(p_home,background_col)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-18-1.png" width="960" style="display: block; margin: auto;" /></p>
 <p>Broadly speaking London has a whole has followed the same trend of spending more time at home.</p>
 <p>The “spiky” behaviour is due to the day of week meaning there will be big differences for people spending time at home during weekdays and weekends.</p>
-<p>It’s also worth remembering that the baseline is a measure of the average spent, not number of people. And since there are only so many hours in the day, we should expect small changes, like on weekends where people aren’t going to work.</p>
+<p>It’s also worth remembering for the case of residential places, the baseline is a measure of the average time spent, not the number of people. And since there are only so many hours in the day, we should expect small changes, like on weekends where people aren’t going to work.</p>
 <pre class="r"><code>background_col &lt;- &quot;#E0EAFA&quot;
 
 p_rr &lt;- london_map(&quot;retail_and_recreation&quot;,col=&quot;#2266DD&quot;,background_col =background_col)+ 
@@ -691,7 +691,7 @@ p_rr &lt;- london_map(&quot;retail_and_recreation&quot;,col=&quot;#2266DD&quot;,
 
 full_london_viz(p_rr,background_col)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-19-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p>For retail and recreation locations, we see a similar picture for the other locations, where the inner boroughs were deserted, and the outer ones saw more activity.</p>
+<p>For retail and recreational locations, we see a similar picture for the other locations, where the inner boroughs were deserted, and the outer ones saw more activity.</p>
 <p>Boroughs like the City of Westminster and the City of London, saw a huge decrease. Since the beginning of lockdown, the number of people at these locations did not even reach 1/2th of the pre-pandemic numbers.</p>
 <p>During the Summer, many boroughs saw a recovery to pre-pandemic levels, but this was short-lived. This rise may have been spurred by the “Eat Out to Help Out” scheme.</p>
 <pre class="r"><code>background_col &lt;- &quot;#E0F4EF&quot;
@@ -706,7 +706,7 @@ full_london_viz(p_gp,background_col)</code></pre>
 <p>Visits to the supermarket and locations for food did not change that much. This should not surprising as people need to eat food to survive, so we should not expect any drastic changes.</p>
 <p>Before news of a lockdown was officially announced, there was a large increase in several boroughs - almost 50% - in the number of people doing the shopping. There were many instances of panic-buying reported across the media, items like pasta, rice, flour and toilet rolls were highly sought after.</p>
 <p>The general trend seems to be that shopping levels are returning to pre-pandemic numbers. Many places saw a spike around December, this is most likely due to the holiday season.</p>
-<p>While many boroughs followed the same trend, there is one one oddity; the borough of Camden has much lower levels of shopping than the other boroughs compared. During the Summer, it was just under a 50% decrease, while many of the other boroughs add a percent decrease of 25%.</p>
+<p>While many boroughs followed the same trend, there is one oddity; the borough of Camden has much lower levels of shopping than the other boroughs compared. During the Summer, it was just under a 50% decrease, while many of the other boroughs had a percent decrease of 25%.</p>
 <pre class="r"><code>background_col &lt;- &quot;#F8F2F1&quot;
 
 p_workplaces &lt;- london_map(&quot;workplaces&quot;,col=&quot;#A96256&quot;,background_col = background_col)+ 
@@ -728,7 +728,7 @@ p_transport &lt;- london_map(&quot;transit_stations&quot;,col=&quot;#F10E8D&quot
 full_london_viz(p_transport,background_col)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-22-1.png" width="960" style="display: block; margin: auto;" /></p>
 <p>As we have seen earlier, the number of people at transport locations has also dipped.</p>
-<p>It appears that, once again, the percent change did not recover as much in central London as it did anywhere else. Where central London only just reach over 50% of pre-pandemic levels, other boroughs saw usage recover to nearly 75% of pre-pandemic levels.</p>
+<p>It appears that, once again, the percent change did not recover as much in central London as it did anywhere else. Where central London only just reached over 50% of pre-pandemic levels, other boroughs saw usage recover to nearly 75% of pre-pandemic levels.</p>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
@@ -742,7 +742,7 @@ full_london_viz(p_transport,background_col)</code></pre>
 <p>For mobility trends:</p>
 <ul>
 <li><p>People are spending more time at home, but this has been decreasing as the year went on</p></li>
-<li><p>Locations such as workplaces, groceries, pharmacies saw a dramatic reduction from the baseline during the year</p></li>
+<li><p>Locations such as workplaces, groceries, and pharmacies saw a dramatic reduction from the baseline during the year</p></li>
 <li><p>Parks saw some positive increase from the baseline, but this was due to better weather during the Summer</p></li>
 <li><p>The second lockdown has a closer return to pre-pandemic levels than the first</p></li>
 <li><p>The inner boroughs of London typically saw lower levels of mobility from the baseline at various locations, than compared to the outer boroughs</p></li>
