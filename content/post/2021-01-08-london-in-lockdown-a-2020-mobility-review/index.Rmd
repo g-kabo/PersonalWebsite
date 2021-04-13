@@ -272,7 +272,7 @@ all_mobility %>%
   geom_text(data = ann_text,aes(label=label),vjust=1.2,col="black",alpha=0.6,size=3)
 ```
 
-We can interpret the plot as the following: For transit stations on the 11th March, the percent change was -75% from the baseline value. This means that the number of people at the park was only 25% of the day of week average in the period 3rd Jan - 6 Feb 2020.
+We can interpret the plot as the following: For transit stations on the 11th April, the percent change was -75% from the baseline value. This means that the number of people at the park was only 25% of the day of week average in the period 3rd Jan - 6 Feb 2020.
 
 There are interesting pieces of information here. First I will state the obvious.
 
