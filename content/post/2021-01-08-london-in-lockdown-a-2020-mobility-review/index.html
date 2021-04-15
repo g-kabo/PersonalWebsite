@@ -27,8 +27,7 @@ library(geofacet)
 library(ggtext)
 library(grid)
 
-options(kableExtra.html.bsTable = TRUE)
-#knitr::opts_chunk$set(dpi = 300)</code></pre>
+options(kableExtra.html.bsTable = TRUE)</code></pre>
 <pre class="r"><code>transport &lt;-  read_csv(here::here(&quot;static&quot;,&quot;data&quot;,&quot;UK2020Travel.csv&quot;))
 
 transport &lt;- janitor::clean_names(transport) %&gt;% 
@@ -509,7 +508,7 @@ Workplaces
 <p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
 <p>We clearly see that trends from the first lockdown to the second, where for all locations, expect for residential places, there were more people visiting them in the second lockdown than in the first. While the time spent at home is greater than the baseline during the second lockdown, it fell when compared to the first lockdown. This meant people were spending less time at home for the second lockdown than the first.</p>
 <p>Essentially, the trend appears to suggest that Londoners are going back to their pre-pandemic behaviour. Is this a hint of lockdown fatigue or a sign of adjusting to the times?</p>
-<p>As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisors, that people are not adhering to the rules as much. Perhaps in another blog post I will look to see the differences between the 3 lockdowns.</p>
+<p>As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisers, that people are not adhering to the rules as much. Perhaps in another blog post I will look to see the differences between the 3 lockdowns.</p>
 <p>For now let’s view the average weekly trend.</p>
 <pre class="r"><code>ann_text &lt;-  data.frame(name=&quot;Parks&quot;,
                         date= as.Date(c(&quot;2020-04-16&quot;,&quot;2020-11-18&quot;,&quot;2020-12-27&quot;,&quot;2020-08-09&quot;)  ),

@@ -25,7 +25,6 @@ library(ggtext)
 library(grid)
 
 options(kableExtra.html.bsTable = TRUE)
-#knitr::opts_chunk$set(dpi = 300)
 ```
 
 ```{r ,message=FALSE}
@@ -349,7 +348,7 @@ We clearly see that trends from the first lockdown to the second, where for all 
 
 Essentially, the trend appears to suggest that Londoners are going back to their pre-pandemic behaviour. Is this a hint of lockdown fatigue or a sign of adjusting to the times?
 
-As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisors, that people are not adhering to the rules as much. Perhaps in another blog post I will look to see the differences between the 3 lockdowns.
+As of this blog post being written, London is currently in its 3rd lockdown and there has been some concern, especially amongst leaders in Government and senior academic advisers, that people are not adhering to the rules as much. Perhaps in another blog post I will look to see the differences between the 3 lockdowns.
 
 For now let's view the average weekly trend.
 
