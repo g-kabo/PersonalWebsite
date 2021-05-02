@@ -25,5 +25,3 @@ This will be a blog where I will post things mainly related to data. This may be
 I am writing this blog as a way of documenting my work and being able to easily collate everything into one place; this will mean that it will be easy for me or anyone else to follow my work.
 
 I don't know where this blog will take me, but I am sure it will be a fun journey.
-
-test
