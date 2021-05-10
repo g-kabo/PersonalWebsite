@@ -1,0 +1,64 @@
+---
+title: 'Tidy Tuesday: US Post Offices'
+author: ''
+date: '2021-05-10'
+slug: []
+categories: []
+tags:
+  - Tidy Tuesday
+description: ''
+topics: []
+---
+
+<script src="index_files/header-attrs/header-attrs.js"></script>
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+
+
+<p>We will explore the <a href="https://github.com/rfordatascience/tidytuesday/tree/master/data/2021/2021-04-13">Tidy Tuesday dataset for <code>2021-04-13</code></a>, which is to do with the history of US post offices. The dataset contains information such as the location of the post offices, the date in which they were established, and if applicable, the date in which they were discontinued.</p>
+<p>We will create an animation using the <code>gganimate</code> library together with the map library <code>ggmap</code>, to show how the the locations of US post offices changed over time.</p>
+<pre class="r"><code># load libraries
+library(tidyverse)
+library(ggmap)
+library(gganimate)
+
+# read the data
+post_offices &lt;- read_csv(&#39;https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-13/post_offices.csv&#39;)
+
+# clean the data
+post_offices &lt;-  post_offices %&gt;%
+  replace_na(list(discontinued = 2003)) %&gt;% 
+  filter(discontinued &gt;= established,
+         established &gt;= 1800,
+         discontinued &lt;= 2003,
+         !state %in% c(&quot;AK&quot;,&quot;HI&quot; )) %&gt;% 
+  mutate(year = map2(established, discontinued, seq)) %&gt;%
+  unnest(year) %&gt;% 
+  select(latitude,longitude,year) %&gt;% 
+  na.omit()</code></pre>
+<p>Now we will create a map to base our animation</p>
+<p>First we create a bounding box to choose the map area we want. This gives us a map of the US</p>
+<pre class="r"><code>us &lt;- c(left = min(post_offices$longitude) - 1 ,
+        bottom = min(post_offices$latitude) - .25  ,
+        right = max(post_offices$longitude) + 1,
+        top = max(post_offices$latitude) + .25)
+
+us_map &lt;-  get_stamenmap(us, zoom = 5, maptype = &quot;terrain&quot;) 
+
+ggmap(us_map)+
+  labs(title=&quot;Map of mainland US&quot;)+
+  theme(plot.title  = element_text(size=15,hjust = 0.5))</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>We plot the points from our <code>post_office</code> data on top of this map and animate through the <code>year</code> variable.</p>
+<pre class="r"><code>anim &lt;-  ggmap(us_map)+
+geom_point(data = post_offices %&gt;% filter(year %% 5 == 0)  ,
+           mapping = aes(x=longitude,y=latitude),
+           size=0.3,col=&quot;#c70a0a&quot;,alpha=0.3)+
+  transition_manual(year)+
+  labs(title=&quot;US post offices in {current_frame}&quot;)+
+  theme(plot.title  = element_text(size=15,hjust = 0.5,))</code></pre>
+<p>And we finally achieve our intended results!</p>
+<pre class="r"><code>animate(anim, width = 1200, height = 800,fps=60,end_pause = 10,duration = 5)</code></pre>
+<pre><code>## nframes and fps adjusted to match transition</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-4-1.gif" /><!-- --></p>
+<p>Some of code was inspired by <a href="https://www.youtube.com/watch?v=Sx9uo2tCOFM">David Robinson’s screencasts</a>.</p>
