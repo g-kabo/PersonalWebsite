@@ -1,0 +1,715 @@
+---
+title: Fantasy Premier League Season 2020/21 Review
+author: ''
+date: '2021-06-06'
+slug: []
+categories: []
+tags:
+  - data exploration
+description: ''
+topics: []
+---
+
+During 2020, I decided to play the Fantasy Premier League (FPL) and use a more analytical approach to decide which player to pick for my team, the end result being I finished in the top 80k out over 8+ million players (i.e. I am in the top 1%!) - not bad having started Gameweek 1 somewhere north of 4 million.
+
+For those unaware, FPL is a game where the objective is to the score as many points as possible subjects to a few constraints; namely you have a maximum budget of £100m, you a squad comprised of 2 goalkeepers, 5 defenders, 5 midfielders and 3 forwards; and of this squad of 15 players you must pick the best 11 for a gameweek (including one keeper) that you think will score the most points. This is done over every gameweek the whole season. Points are scored based on the real world actions for all games in the premier league. Read more about FPL and it's rules [here](https://fantasy.premierleague.com/help/rules).
+
+
+We will be taking a retrospective look at the 2020-21 season for FPL.
+
+
+# Season Look
+
+```{r,echo=FALSE,message=FALSE}
+knitr::opts_chunk$set(message = FALSE,warning = FALSE)
+options(kableExtra.html.bsTable = TRUE)
+library(tidyverse)
+library(glue)
+library(patchwork)
+library(gganimate)
+```
+
+
+
+```{r,echo=FALSE}
+bootstrap_static <-  readRDS(here::here(file="static/data/FPL2020-21_bootstrap-static"))
+```
+
+```{r,echo=FALSE}
+all_elements <- bootstrap_static$elements
+all_teams <- bootstrap_static$teams
+
+
+all_elements <-   all_elements %>% 
+  select(id,first_name,second_name,goals_scored,assists,total_points,minutes,goals_conceded,creativity,influence,threat,bonus,bps,ict_index,clean_sheets,red_cards,yellow_cards,selected_by_percent,now_cost,element_type,value_form,value_season,form,team,dreamteam_count,in_dreamteam,transfers_in,transfers_out,cost_change_start) %>% 
+  rename(team=team)
+
+
+all_teams <-  all_teams %>% select(id,name,short_name)
+
+
+all_elements <- all_elements %>% 
+  left_join(all_teams,by=c("team"="id"))%>%                       
+  relocate(element_type, .after=second_name) %>%
+  relocate(name, .after=element_type)%>%
+  relocate(value_form, .after=last_col())%>%
+  relocate(value_season, .after=last_col())%>%
+  relocate(form, .after=last_col())%>%
+  relocate(short_name, .after=last_col())%>%
+  rename(pure_form=form) %>%
+  mutate(now_cost = now_cost/10,
+         element_type=  factor( case_when(element_type == 1 ~ "GK",
+                                  element_type == 2 ~ "DEF",
+                                  element_type == 3 ~ "MID",
+                                  element_type == 4 ~ "FWD",
+         ),levels = c("GK","DEF","MID","FWD")
+         ),
+         name = factor(name),
+         short_name = factor(short_name),
+         creativity = as.numeric(creativity),
+         influence = as.numeric(influence),
+         threat = as.numeric(threat),
+         ict_index = as.numeric(ict_index),
+         selected_by_percent = as.numeric(selected_by_percent),
+         value_form = as.numeric(value_form),
+         value_season = as.numeric(value_season),
+         pure_form = as.numeric(pure_form),
+         net_transfers = transfers_in-transfers_out,
+         cost_change_start = cost_change_start/10,
+         cost_start = now_cost - cost_change_start,
+         cost_cat_start = factor( case_when(    element_type == "GK" & cost_start < 4.5 ~ "Budget",
+                                        element_type == "GK" & cost_start >= 4.5  & cost_start < 5.0 ~ "Low-Mid",
+                                        element_type == "GK" & cost_start >= 5.0  & cost_start < 5.5  ~ "High-Mid",
+                                        element_type == "GK" & cost_start >= 5.5 ~ "Premium",
+                                        element_type == "DEF" & cost_start < 4.5 ~ "Budget",
+                                        element_type == "DEF" & cost_start >= 4.5  & cost_start < 5.0 ~ "Low-Mid",
+                                        element_type == "DEF" & cost_start >= 5.0  & cost_start < 6.0  ~ "High-Mid",
+                                        element_type == "DEF" & cost_start >= 6.0 ~ "Premium",
+                                        element_type == "MID" & cost_start < 5.0 ~ "Budget",
+                                        element_type == "MID" & cost_start >= 5.0   & cost_start < 7.5 ~ "Low-Mid",
+                                        element_type == "MID" & cost_start >= 7.5  & cost_start < 9.5  ~ "High-Mid",
+                                        element_type == "MID" & cost_start >= 9.5 ~ "Premium",
+                                        element_type == "FWD" & cost_start < 6.0 ~ "Budget",
+                                        element_type == "FWD" & cost_start >= 6.0  & cost_start < 7.5 ~ "Low-Mid",
+                                        element_type == "FWD" & cost_start >= 7.5  & cost_start < 9.5  ~ "High-Mid",
+                                        element_type == "FWD" & cost_start >= 9.5 ~ "Premium",
+                                         TRUE ~ "UNKNOWN"
+                                        )
+                                  ,levels = c("Budget","Low-Mid","High-Mid","Premium")
+                                  ),
+         cost_cat_end = factor( case_when(    element_type == "GK" & now_cost < 4.5 ~ "Budget",
+                                        element_type == "GK" & now_cost >= 4.5  & now_cost < 5.0 ~ "Low-Mid",
+                                        element_type == "GK" & now_cost >= 5.0  & now_cost < 5.5  ~ "High-Mid",
+                                        element_type == "GK" & now_cost >= 5.5 ~ "Premium",
+                                        element_type == "DEF" & now_cost < 4.5 ~ "Budget",
+                                        element_type == "DEF" & now_cost >= 4.5  & now_cost < 5.0 ~ "Low-Mid",
+                                        element_type == "DEF" & now_cost >= 5.0  & now_cost < 6.0  ~ "High-Mid",
+                                        element_type == "DEF" & now_cost >= 6.0 ~ "Premium",
+                                        element_type == "MID" & now_cost < 5.0 ~ "Budget",
+                                        element_type == "MID" & now_cost >= 5.0   & now_cost < 7.5 ~ "Low-Mid",
+                                        element_type == "MID" & now_cost >= 7.5  & now_cost < 9.5  ~ "High-Mid",
+                                        element_type == "MID" & now_cost >= 9.5 ~ "Premium",
+                                        element_type == "FWD" & now_cost < 6.0 ~ "Budget",
+                                        element_type == "FWD" & now_cost >= 6.0  & now_cost < 7.5 ~ "Low-Mid",
+                                        element_type == "FWD" & now_cost >= 7.5  & now_cost < 9.5  ~ "High-Mid",
+                                        element_type == "FWD" & now_cost >= 9.5 ~ "Premium",
+                                         TRUE ~ "UNKNOWN"
+                                        )
+                                  ,levels = c("Budget","Low-Mid","High-Mid","Premium")
+                                  ),
+         cost_cat_same = if_else( cost_cat_start == cost_cat_end, TRUE,FALSE ),
+         cost_value_start = total_points/now_cost,
+         cost_value_end = total_points/cost_start
+  ) %>% 
+  relocate(net_transfers, .after=transfers_out) %>% 
+  relocate(cost_change_start, .after=now_cost) %>% 
+  relocate(cost_start,.after=cost_change_start)
+
+```
+
+
+First let's look at the total points distribution for each other. We notice that for all players, the median total point score is 28 points. But we should not that the data includes players who did not even play more 1 minute. So by filtering for increasing play time, we see that the median points score also increases.
+
+```{r,echo=FALSE,fig.width=10,fig.height=7,warning=FALSE}
+
+
+histogram_plot <-  function( min_minutes){
+ fp <-    all_elements %>% 
+  filter(minutes >= min_minutes) %>% 
+  ggplot(aes(x=total_points))+
+  geom_histogram(aes(x=total_points),binwidth = 20,col="black",fill="darkgoldenrod1")+
+  labs( title =paste0("Players who played at least ", min_minutes, " minute(s)"),
+        subtitle =  glue("Number of Players: {all_elements %>% filter(minutes >= min_minutes ) %>% nrow()}"),
+        x="Total Points",y="")+
+# xlim(-5,250)+
+  geom_vline( data = . %>% summarise(avg = median(total_points) ), mapping = aes(xintercept = avg) , col="red",lty=2    )+
+    annotate(geom="text",x=200,y=Inf,vjust=2,  label= glue("The median number \nof points scored is: {
+                                                 all_elements %>% 
+                                                 filter(minutes >= min_minutes) %>%
+                                                 summarise(avg = median(total_points)) %>% 
+                                                 pull(avg) }"  ) )+
+   theme_minimal()
+  
+ return(fp)
+  
+}
+
+p1 <-  histogram_plot(0)
+p2 <- histogram_plot(1)
+p3 <- histogram_plot(500)
+p4 <- histogram_plot(1000)
+p5 <- histogram_plot(2000)
+p6 <- histogram_plot(3000)
+
+(p1 + p2) / (p3 + p4) / (p5+p6)  + patchwork::plot_annotation(title="Distribution of Total Points by minutes played")
+```
+
+Let's view the 10 highest point scorers.
+
+```{r,echo=FALSE}
+all_elements %>%
+  #arrange(-total_points) %>% 
+  slice_max(order_by = total_points, n=10) %>% 
+ ggplot(aes(y= reorder(second_name,total_points) ,x=total_points,fill=element_type ))+
+   geom_col() +
+  geom_text(aes(label=total_points),hjust=-.1)+
+    geom_text(aes(label=paste0("(",name,")"),x=1),hjust=0,size=3,fontface="italic")+
+  labs(title="Top 10 Players by Score",
+       x="Total Points",y="",
+       fill="Position")+
+  scale_x_continuous(expand=c(0,NA),limits = c(0,265) )+
+  theme_minimal()
+```
+
+We see that Bruno Fernades scored the most amount of points with 244, this is followed by Kane (242) and Salah (231). There are 5 midfielders, 3 forwards, 1 defender and 1 goalkeeper in the top 10. This suggests that attacking players are more likely to get more points than players in defensive positions.
+
+
+Let's now look to see how the points distribution differed by player position
+
+```{r,echo=FALSE}
+all_elements %>%
+  #arrange(-total_points) %>% 
+  group_by( element_type ) %>% 
+  mutate( points_rnk = dense_rank(total_points)   ) %>% 
+  slice_max(order_by = points_rnk,n=10) %>% 
+  ggplot(aes(x=total_points,y=tidytext::reorder_within(second_name,total_points,element_type),fill=element_type ))+
+  geom_col()+
+    geom_text(aes(label=paste0("(",name,")"),x=10),hjust=0,size=3,fontface="italic")+
+    geom_text(aes(label=total_points),hjust=-.1,size=3)+
+    tidytext::scale_y_reordered()+
+    scale_x_continuous(expand=c(0,NA),limits = c(0,280) )+
+  facet_wrap(.~element_type,scales="free")+
+  labs(title="Top 10 total points by position",
+       x="Total Points",y="")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
+
+It seems like midfielders and forwards score more points than defenders or goalkeepers. Let's visualise this.
+
+
+```{r,echo=FALSE,fig.width=4,fig.height=3}
+#fig.height=7
+
+mins_filter_points <- function(min_minutes){
+  f_df <-  all_elements %>% 
+    filter(minutes >= min_minutes) %>% 
+    select(id,element_type,total_points) %>% 
+    mutate("min_minutes" = as.factor(min_minutes)  )
+  
+  return(f_df)
+}
+
+
+anim <-  bind_rows(mins_filter_points(0),
+          mins_filter_points(1),
+          mins_filter_points(500),
+          mins_filter_points(1000),
+          mins_filter_points(2000),
+          mins_filter_points(3000)
+) %>% 
+  ggplot(aes(x=element_type,y=total_points,fill=element_type))+
+  geom_boxplot(show.legend = FALSE,outlier.shape = NA)+    
+  labs(subtitle="Total Points by position",
+         x="Position",y="Total Points")+
+  theme_minimal()+
+  transition_states(min_minutes)+
+  ease_aes('sine-in-out')+
+  ggtitle("Minimum minutes played: {closest_state} mins")
+
+anim
+  
+```
+
+From the graph is appears that for all players, goalkeepers have the lowest median total points score, while defenders, midfielders and forwards are about on the same level. But as we increase our threshold for the number of players, forwards ending up having the highest average points, which is followed by goalkeepers.  
+
+Let's view the median results
+
+```{r,echo=FALSE}
+
+median_finder <-  function(min_minutes){
+
+all_elements %>%
+  filter(minutes>=min_minutes) %>% 
+  group_by(element_type) %>% 
+  summarise(median_points = median(total_points) ) %>% 
+  mutate( min_minutes = min_minutes   )
+}
+
+bind_rows(  median_finder(0),
+            median_finder(1),
+            median_finder(500),
+            median_finder(1000),
+            median_finder(2000),
+            median_finder(3000)) %>% 
+  pivot_wider(names_from = min_minutes,values_from = median_points,names_prefix = "min_minutes_") %>% 
+  kableExtra::kable(align = "rcccccc",col.names = c("Position",
+                                                   "0 mins","1 min","500 mins","1,000 mins","2,000 mins","3,000 mins"  ),
+                    caption = "Median Total Points scored by position and minutes played ") %>% 
+    kableExtra::kable_styling(bootstrap_options = c(),full_width = F) %>% 
+    kableExtra::add_header_above(c(" " = 1, "Median Total Points\n by minimum minutes played" =6)  ) 
+```
+
+The above table tells us the median points scored by position and minutes played. For example, the median for total points scored by forwards who played at least 2,000 minutes was 134 points. The case for when the minimum number of minutes played is zero corresponds to all players in the data set.
+
+
+What we see is that goalkeepers and forwards have a high median for total points, followed by midfielders and defenders. What is interesting is that there isn't much difference in the median when comparing goalkeepers who played at least 2,000 minutes and those who scored 3,000 minutes.
+
+(If you are curious, the maximum number of minutes a player can play is 90 mins for 38 games, thus the maximum is 90*38 = 3,420 minutes )
+
+
+We see that there is a massive jump for forwards when the minimum minutes threshold is increased, this be due to the fact that forwards who play more have more chances at goal, and thus leading to more goals being scored?
+
+
+
+```{r,echo=FALSE,fig.width=8,fig.height=8}
+
+team_points_histogram <-  function(min_minutes){
+
+fp <- all_elements %>% 
+  filter(minutes>=min_minutes) %>% 
+  mutate(  name  = fct_reorder(name,total_points )) %>% 
+  ggplot() +
+  geom_boxplot(aes(x=total_points,y= name),outlier.shape = NA,fill="firebrick2")+
+ # geom_jitter(aes(x=total_points,y=name),width = 0,height = 0.1,alpha=0.4)+
+  labs(subtitle=paste0("At least ",min_minutes," minutes played"),
+       x="Total Points",y="")+
+  theme_minimal()+
+  theme(panel.grid.major.y = element_blank())
+ 
+  return(fp) 
+}
+
+
+( team_points_histogram(0) + team_points_histogram(500) ) / (team_points_histogram(1000) + team_points_histogram(2000) )+
+ plot_annotation(title="Not all teams were made equal",subtitle="Total Points scored by team and minimum minutes played for each player")
+
+```
+
+What we notice from the above graph is that some teams performed better than others. For example across all players, Manchester United are the 4th worse team in terms of points scored by player on average, but as we increase the threshold for the minutes a player has played, the team jumps to the 5th best.
+
+While minutes played is indeed highly correlated with total point scored, there's no way of guaranteeing which players will end up playing for many minutes - there may be unexpected events like injuries that can occur which causes the minutes played to be cut short. A general rule of thumb would be to generally choose players who are in the starting 11 for a squad.
+
+Do minutes vary by posistion and budget?
+
+We will bucket players into various categories according to their position and price range
+
+The players bucketed as follows
+
+```{r,echo=FALSE}
+tibble("Position"= c("GK","DEF","MID","FWD"),
+       "Budget" = c("<£4.5m","<£5m","<£5m","<£6m"),
+       "Low-Mid" = c("£4.5m-£5m","£4.5m-£5m","£5m-£7.5m","£6m-£7.5m"),
+       "High-Mid" =c("£5m-£5.5m","£5m-£6m","£7.5m-£9.5m","£7.5m-£9.5m"),
+       "Premium" =c(">£5.5m",">£6m",">£9.5m",">£9.5m")
+) %>% 
+  kableExtra::kable() %>% 
+      kableExtra::kable_styling(bootstrap_options = c(),full_width = F) 
+```
+
+The prices were made completely arbitrarily but are general enough to represent the price bracket a player is in. 
+
+```{r,echo=FALSE,fig.width=10,fig.height=5}
+all_elements %>% 
+  select(2:4,total_points,minutes,cost_cat_start) %>% 
+    filter(minutes > 0) %>% 
+  ggplot(aes(x=cost_cat_start,y=total_points,fill=element_type))+
+  geom_boxplot()+
+ # geom_jitter(height=0,width=0.2,alpha=0.4)+
+  facet_grid(cols=vars(element_type))+
+  labs(title="Generally speaking the more expensive a player is the more points they score",
+       subtitle="Total Points distribution by player initial price catergory, position and whom have played at least 1 minute",
+       x="Cost Category",y="Total Points")+
+    theme_bw()+
+  theme(legend.position = "none",
+        plot.title.position = "plot",
+        panel.grid.minor = element_blank())
+```
+
+The above graph tell us that on average, more expensive players score more points. But given the budget restrictions, we can't simply pick a team full of expensive players as we wouldn't be able to afford them, so another metric to look at is how efficient a player is at scoring points relative to their price.
+
+The graph also shows that premium midfielders had the highest median score. This should be clear as these players get an extra point for scoring goals than goals, and also get a point for any clean sheets.
+
+We introduce the metric of points efficiency of player which is simply $\frac{\text{Total Points}}{\text{Cost}}$.(Note here we use a player's initial cost)
+
+
+```{r,echo=FALSE}
+all_elements %>% 
+  select(2:4,total_points,minutes,cost_cat_start,cost_start) %>%
+  filter(minutes > 0) %>% 
+  mutate( points_per_cost =   total_points/cost_start ) %>% 
+  ggplot(aes(x=cost_cat_start,y=points_per_cost))+
+  geom_boxplot(aes(fill=cost_cat_start),outlier.shape = NA)+
+  geom_jitter(height=0,width=0.2,alpha=0.4)+
+  scale_fill_brewer(palette="Dark2")+
+  labs(title="While more expensive players were generally more cost efficient,\nmany Low-Mid players had incredible value",
+       subtitle="Points per £ by initial price category of players who had a playing time of at least 1 minute",
+       x="Price Category",y="Points per £")+
+    theme_minimal()+
+  theme(legend.position="none",
+        plot.title.position = "plot")
+```
+
+By looking at the ratio of points to cost, we see that again, generally speaking, more expensive players had a better efficiency score, but there were many players in the Low-Mid category that had great value. 
+
+
+```{r,echo=FALSE,fig.width=10,fig.height=5}
+all_elements %>% 
+  select(2:4,total_points,minutes,cost_cat_start,cost_start) %>% 
+  filter(minutes>0) %>% 
+  mutate( points_per_cost =   total_points/cost_start ) %>% 
+  ggplot(aes(x=cost_cat_start,y=points_per_cost))+
+  geom_boxplot(aes(fill=element_type))+
+  geom_jitter(height=0,width=0.2,alpha=0.4)+
+  facet_wrap(.~element_type,nrow=1)+
+#    facet_grid(rows=vars(element_type))+
+#  scale_fill_brewer(palette="Dark2")+
+  labs(title="While more expensive players were generally more cost efficient,\nmany cheaper players had incredible value",
+       subtitle="Points per £ by initial price category and position of players who had a playing time of at least 1 minute",
+       x="Price Category",y="Points per £")+
+    theme_bw()+
+  theme(legend.position="none",
+        plot.title.position = "plot")
+```
+
+
+Above we see that as the price range of a player increases, so does the price efficiency. However, we note that goalkeepers who were the in category of high-mid or premium had about an equal median value for price efficiency. There were many goalkeepers in the low-mid category who had a high.
+
+For defenders we see that mid-high defenders had a better price efficiency than premium defenders, but there were many low-mid defenders who a high price efficiency for their position.
+
+For midfielders and forwards, players in high price categories tended to yield a high price efficiency, but there were many players that gave a high price efficiency.
+
+For all positions, it appears that players in the budget category had a poor points efficiency.
+
+
+## Home or Away?
+
+Next we look at the impact of whether the location of the game had an impact in the number of points scored. Given that most of the games were played in empty stadiums it would suggest that there shouldn't be too big of a difference in the total points by locations.
+
+
+
+```{r,echo=FALSE}
+all_player_history_raw <-  readRDS(here::here(file="static/data/FPL2020-21_all_player_history"))
+
+
+all_player_history <- left_join(all_player_history_raw,
+                                all_elements %>% 
+                                  select(id,first_name,second_name,season_minutes=minutes,element_type,name),
+                                by=c("element"="id") )
+```
+
+```{r, echo=FALSE}
+all_player_history %>% 
+  filter(season_minutes>0) %>% 
+  group_by(element,was_home) %>% 
+  summarise(total_points = sum(total_points),.groups = "drop") %>% 
+  ggplot(aes(x=was_home,y=total_points))+
+  geom_boxplot(aes(fill=was_home))+
+  scale_fill_brewer(palette = "Pastel1")+
+  labs(title="Players scored more points at home than away",
+       subtitle="Player score by game location",
+       x="Was Home?",y="Total Points")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        plot.title.position = "plot")
+```
+
+We see that there is an ever slightly small advanrage at playing home, as the median is slightly higher for home games than away games.
+
+Let's see if there are any differences by position
+
+
+```{r, echo=FALSE}
+all_player_history %>% 
+  filter(season_minutes>0) %>% 
+  group_by(element,was_home,element_type) %>% 
+  summarise(total_points = sum(total_points),.groups = "drop") %>% 
+  ggplot(aes(x=was_home,y=total_points))+
+  geom_boxplot(aes(fill=was_home))+
+  #geom_jitter(height=0,width=0.2,alpha=0.2)+
+  facet_wrap(.~element_type,nrow=1)+
+  scale_fill_brewer(palette = "Pastel1")+
+  theme_bw()+
+  theme(legend.position = "none",
+        plot.title.position = "plot")+
+    labs(title="Goalkeepers scored more points away from home than at home",
+       subtitle="Total points by player position and game location",
+       x="Was Home?",y="Total Points")
+```
+
+We oddly see that Goalkeepers tend to return more points away from home, whereas the opposite is true for the other positions. Could this be because away from home, goalkeepers face a lot of shots and so goalkeepers away from home accumulate more points from shots?
+
+
+
+```{r, echo=FALSE,fig.width=9,fig.height=8}
+wide_home_away <-  all_player_history %>% 
+  filter(season_minutes>0) %>% 
+  group_by(was_home,name) %>% 
+  summarise(total_points = sum(total_points),.groups = "drop") %>% 
+  pivot_wider(names_from = was_home,values_from = total_points,names_prefix = "is_home_") %>% 
+  mutate( is_home_diff = is_home_TRUE - is_home_FALSE,
+          better_home = if_else(is_home_diff>0,TRUE,FALSE))
+
+all_player_history %>% 
+  filter(season_minutes>0) %>% 
+  group_by(was_home,name) %>% 
+  summarise(total_points = sum(total_points),.groups = "drop") %>% 
+  left_join(wide_home_away, by=c("name") ) %>% 
+  mutate( name =   fct_reorder(name,-is_home_diff)) %>% 
+  ggplot(aes(x=was_home,y=total_points,group=name,col=is_home_diff>0))+
+  geom_point()+
+  geom_line() +
+  geom_text(aes(label=total_points),vjust=-.2,col="black" )+
+  geom_text(aes(label=paste0("Points Difference\n",is_home_diff),x=1.5,y=250),show.legend = FALSE)+
+  facet_wrap(.~name)+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank())+
+  scale_color_manual(values=c("firebrick3","darkgreen"),name="Scored more\nat home?")+
+  guides(colour = guide_legend(reverse=T))+
+  ylim(0,1200)+
+  labs(title="Some teams prefer playing at home while others thrive away from home",
+       subtitle="Total points by team and playing location",
+       x="At Home?",y="Total Points")
+```
+
+Here we see that some teams perform better at home rather than away.
+
+
+# Phase of a game
+
+Now we will see how the form and selection of a player changed over the course of the season. We define form as the rolling mean of the previous four weeks. For the first three weeks a cumulative mean was used instead.
+
+From this we can see how a plays rose or fell in selection based on their form. Although some players have high form and low selection - showing that many managers failed to capitalize on a player with a hot streak.
+
+
+```{r,echo=FALSE}
+player_gw_history <-  all_player_history %>% 
+  select(element,total_points,season_minutes,selected,first_name,second_name,name,element_type,round,fixture,minutes,value) %>% 
+#  filter(season_minutes > 500) %>% 
+  group_by(element,round) %>% 
+  mutate( tot_round_points = sum(total_points),
+          tot_round_minutes = sum(minutes),
+          value = value / 10,
+          n_games = n()) %>% 
+  ungroup(round) %>% 
+  select(-total_points,-minutes,-fixture) %>% 
+  complete(  round = full_seq( c(1,round),period=1) ,fill = list(tot_round_points=0,tot_round_minutes=0,n_games=0) ) %>% 
+  fill(first_name,second_name,name,element_type,season_minutes,selected,value ,.direction = "downup") %>% 
+  unique() %>% 
+  mutate( points_per_gwk = tot_round_points/n_games,
+    cum_points = cumsum(tot_round_points),
+          cum_minutes = cumsum(tot_round_minutes),
+          roll_avg_points =  zoo::rollmean(tot_round_points,k=6,fill=NA,align = "right" ) ,
+          roll_avg_points =  ifelse( is.na(roll_avg_points)  , cummean(tot_round_points)  , roll_avg_points )  
+  ) %>% 
+  ungroup()
+  
+```
+
+
+```{r,echo=FALSE}
+
+id_filter <-  all_elements %>% 
+  filter(total_points > 90) %>% 
+  select(1) %>% pull()
+# filter(minutes > 500)
+
+
+p <- player_gw_history %>% 
+ filter(element %in% id_filter) %>% 
+  ggplot(aes(x=roll_avg_points,y=selected,group=element))+
+  geom_point(col="red")+
+  geom_text((aes(label= second_name )),vjust = -.5) +
+  facet_wrap(.~element_type,scales="free_x")+ 
+  labs(subtitle = "FPL Players Form and Selection. Players who scored more than 90 points over the season",
+       title = " Current Gameweek: { trunc(frame_along) }",
+       x="Form",y="Selection (Millions)")+
+  scale_y_continuous(labels = scales::label_number(scale = 1e-6,accuracy = 1,suffix = "M"))+
+  theme_bw()+
+  transition_reveal(round)
+
+animate(p,fps = 30,end_pause = 10,duration = 10 )
+```
+
+This graph shows the change players see in form and selection over the course of the season. Typically we see that when a player reaches a high form level, there is then an increase in the number of managers selected that player.
+
+```{r, echo=FALSE,fig.width=9,fig.height=8}
+top_player_pos <-   function(position,n=25){
+  
+players <-  all_elements %>% 
+  filter( element_type == position) %>% 
+  slice_max(order_by = total_points,n = n ) %>% 
+  select(id) %>% pull()
+
+ p <- player_gw_history %>% 
+ filter(element %in% players) %>% 
+   mutate(  second_name  = fct_reorder2(second_name,round,cum_points)) %>% 
+  ggplot(aes(x=roll_avg_points,y=selected,group=element))+
+      geom_text(aes(label=name),x=Inf,y=0,vjust=-2,hjust=1.5,alpha=0.2,col="grey50")+
+  geom_path()+
+  geom_point(aes(col=round),size=2)+
+   labs(x="Form",y="Selection (Millions)",col="Gameweek")+
+  facet_wrap(.~second_name)  +
+     scale_y_continuous(labels = scales::label_number(scale = 1e-6,accuracy = 1,suffix = "M"))+
+   scale_color_viridis_c(option="D")+
+  theme_bw()+
+   theme(panel.grid.minor  = element_blank())
+  
+  return(p)
+}
+
+
+top_player_pos("GK")+
+  labs(title="Form and Selection of the top 25 Keepers")
+```
+
+This plot shows the top 25 goalkeepers by total points. We see that Martinez saw an ever-increasing number of managers selecting him despite his form varying somewhat. We also see that keepers such as Meslier, Lloris and Johnstone scored quiet high in the end but weren't ever popular with managers
+
+```{r, echo=FALSE,fig.width=9,fig.height=8}
+top_player_pos("DEF")+
+  labs(title="Form and Selection of the top 25 Defenders")
+```
+
+Now by looking at the top 25 defenders, we see even more interesting patterns emerging. For example, if look at Man City defenders like Dias, Stones, and to some extent Cancelo, we can observe that initially they had low selection and low form, but as their form slowly increase, many managers took notice of them and start choosing them. Then once their form peaked and gradually declined so too did the number of manager selections - albeit not as steeply as the form decrease. The resulting phase plot for those players looks like a reverse "C".
+
+Alexander-Arnold initially had high selection, but poor form. Thus the number of selections decreased as TAA wasn't giving good returns when taking into account his high price. Through the middle of the season his form picked up but managers weren't picking him until his form was high enough. His phase plot looks like a "U" shape.
+
+```{r, echo=FALSE,fig.width=9,fig.height=8}
+top_player_pos("MID")+
+  labs(title="Form and Selection of the top 25 Midfielders")
+```
+
+
+For the top 25 midfielders we see other types of patterns. For example Fernades and Son both had good, but not high selection numbers, over the courses of the season as their form reached a certain amount, they both saw an ever increase in selection. Others like Salah who had decent form never saw the heights of selection similar to those seen by Fernandes and Son.
+
+```{r, echo=FALSE,fig.width=9,fig.height=8}
+top_player_pos("FWD")+
+  labs(title="Form and Selection of the top 25 Forwards")
+```
+
+For the top forwards, we see different types of patterns. For Bamford and Calvert-Lewin, they both low selection rates, but thanks to their good early form they quickly became snapped up by many managers. And this selection trend only increased even if their form waned away somewhat.
+
+With Kane, it is easy to see how his high form in the first part of the season saw him become popular with managers, but as his form dipped and was injured there was a drop in usage, however once he was giving returns his selection rates quikcly increased and remained high since.
+
+## Value for Money?
+
+```{r, echo=FALSE}
+roll_player_val <-   function(position,n=25){
+  
+players <-  all_elements %>% 
+  filter( element_type == position) %>% 
+  slice_max(order_by = total_points,n = n ) %>% 
+  select(id) %>% pull()
+
+ p <- player_gw_history %>% 
+ filter(element %in% players) %>% 
+   mutate(  second_name  = fct_reorder2(second_name,round,cum_points)) %>% 
+    mutate( roll_form_value  = roll_avg_points/value  ) %>% 
+  ggplot(aes(x=round,y=roll_form_value))+
+  geom_path()+
+  geom_point(aes(col=roll_form_value),size=2)+
+ #   geom_text(aes(label=name),x=Inf,y=0,vjust=-4,hjust=2,alpha=0.2,col="grey50")+
+  facet_wrap(.~second_name)  +
+   scale_color_viridis_c(option="D")+
+   labs(x="Gameweek",y="Rolling Average Value ( Form per £)")+
+  theme_bw()+
+ theme(legend.position = "none")
+  
+  return(p)
+}
+```
+
+Next we will look at how the players performed relative to their price. This allows us to compare different players at different price points too see how how much better value for money a player is over another. Another thing to consider is that a player's value changes over time too.
+
+
+I won't be directly commenting on the graphs, but it's interesting to note when players have different peaks
+
+```{r, echo=FALSE,fig.width=9,fig.height=8}
+roll_player_val("GK")+
+  labs(title="Form Value of the top 25 Goalkeepers")
+roll_player_val("DEF")+
+  labs(title="Form Value of the top 25 Defenders")
+roll_player_val("MID")+
+  labs(title="Form Value of the top 25 Midfielders")
+roll_player_val("FWD")+
+  labs(title="Form Value of the top 25 Forwards")
+```
+
+
+# League Winners
+
+We will shift gears and look at league performances.
+
+First let's see which team league performed the best.
+
+
+```{r, echo=FALSE}
+team_leagues <- readRDS(here::here(file="static/data/FPL2020-21_team_leagues"))
+
+team_leagues %>% 
+  group_by(team_league) %>% 
+  summarise(median_points = median(total)) %>% 
+  mutate( team_league = fct_reorder(team_league, median_points )) %>% 
+  ggplot(aes(x=median_points,y=team_league))+
+  geom_col(fill="dodgerblue2")  +
+  labs(title="Team minileague performance of top managers",
+       subtitle="Median points of top 1000 managers by total points",
+       x="Median Points",y="Team League")+
+  scale_x_continuous(expand = c(0,NA),limits = c(0,2600))+
+  theme_minimal()+
+  theme(plot.title.position = "plot")
+
+```
+
+Here we see that the teams with the highest median points total in the top 1000 managers are Leicester, Everton, Arsenal. The worst performing are Newcastle, West Ham, and Sheffield Utd.
+
+
+```{r, echo=FALSE}
+country_leagues <- readRDS(here::here(file="static/data/FPL2020-21_country_leagues"))
+
+country_leagues %>% 
+  group_by(league_title) %>% 
+  summarise(median_points = median(total)) %>% 
+  mutate( league_title = fct_reorder(league_title, median_points ))  %>% 
+  slice_max(order_by = median_points,n=20) %>% 
+  ggplot(aes(x=median_points,y=league_title))+
+  geom_col(fill="dodgerblue2")  +
+  labs(title="Top 20 Country mini-league performance of top managers",
+       subtitle="Median points of top 1000 managers by total points",
+       x="Median Points",y="Country League")+
+  scale_x_continuous(expand = c(0,NA),limits = c(0,2600))+
+  theme_minimal()+
+  theme(plot.title.position = "plot")
+
+```
+
+The countries with the highest median score for the top 1,000 managers in each country league are England, Norway, Sweden, India, and Egypt. Note that we only look at country leagues with at least 1,000 players.
+
+
+
+
+
+
+
+
+
