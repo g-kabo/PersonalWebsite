@@ -1,0 +1,480 @@
+---
+title: FPL Starting Price Prediction
+author: ''
+date: '2021-06-15'
+slug: []
+categories: []
+tags:
+  - data modelling
+description: ''
+topics: []
+---
+
+As of this post being written the 2020/21 season of FPL has concluded and the 2021/22 season has yet to be started. Since the 2021/22 hasn't started this means that the prices for the players for next season haven't been released. So I thought this would be a good opportunity to use some machine learning algorithms to predict the next seasons starting price for a player.
+
+First, we will need to collect the data and there is an excellent repo on github that contains data from the past seasons of FPL. This link to the repo is [here](https://github.com/vaastav/Fantasy-Premier-League).
+
+After obtaining the data we will implement a machine learning algorithm to predict the next season player prices and see how different variables affect the price and any insight we can see.
+
+# Obtaining the data
+
+Here we will obtain the data and clean it.
+
+This is the raw data
+
+```{r,message=FALSE}
+library(tidyverse)
+options(kableExtra.html.bsTable = TRUE) # For kable table
+
+raw_FPL2017 <-  read_csv("https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/2017-18/players_raw.csv")
+raw_FPL2018 <-  read_csv("https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/2018-19/players_raw.csv")
+raw_FPL2019 <-  read_csv("https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/2019-20/players_raw.csv")
+raw_FPL2020 <-  read_csv("https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/2020-21/players_raw.csv")
+```
+
+We will need to clean it and change it into a form that is useful for us.
+
+```{r}
+clean_df <- function(df){
+  
+  # Function that takes in a dataframe and cleans it
+  #
+  #  Inputs : df  - a Dataframe
+  #  Output : f_df - a cleaned Dataframe of df
+  f_df <-  df %>% 
+      select(id,first_name,second_name,element_type,team,total_points,minutes,now_cost,cost_change_start,points_per_game,selected_by_percent,transfers_in,transfers_out,value_season) %>% 
+    mutate( final_cost = now_cost/10,
+            cost_change_start = cost_change_start/10,
+            start_cost = final_cost - cost_change_start) %>% 
+    select(-now_cost) %>% 
+    unite("full_name",  first_name:second_name, sep=" " ) %>% 
+    mutate( full_name = str_to_lower(full_name) ) %>% 
+    mutate( full_name =  str_replace_all(full_name,"-"," ") ) %>% 
+    mutate( element_type =  case_when( element_type == 1 ~ "GK",
+                                       element_type == 2 ~ "DEF",
+                                       element_type == 3 ~ "MID",
+                                       element_type == 4 ~ "FWD") ) %>% 
+    mutate( element_type = factor(element_type,levels=c("GK","DEF","MID","FWD") ))
+  
+  return(f_df)
+}
+```
+
+The next function is used to obtain the next season's prices for a given season
+
+```{r}
+cleaning_further <- function(df1,df2,remove_na=TRUE){
+  
+  # Function that obtains the cleaned version of a current season and joints the next season prices
+  #
+  # Inputs: df1 - current season of FPL
+  #         df2 - the next season of FPL - used to get next season starting prices
+  #     remove_na - use na.omit() on data, default is TRUE
+  #
+  # Output: cleaned - a dataframe that is the cleaned version of df1 and has season starting prices from df2
+    next_cost <-  clean_df(df2) %>% 
+      select(full_name,next_season_cost=start_cost)
+    
+    cleaned <-  clean_df(df1) %>% 
+      left_join(next_cost,by=c("full_name")) %>% 
+      relocate( start_cost, .before = final_cost )
+    
+    if (remove_na){ cleaned <-  cleaned %>% na.omit() }
+    return(cleaned)
+}
+```
+
+Now with the framework of our cleaning, let's actually clean the data.
+
+```{r}
+# We remove the following players as they would cause problems in our clean data set
+# as they share the same name as other players how have feature more in our data
+# These players are from from relegated teams
+
+raw_FPL2018 <- raw_FPL2018 %>% filter(id != 105 )
+raw_FPL2020 <- raw_FPL2020 %>% filter(id != 653 )
+
+clean_2017 <-  cleaning_further(raw_FPL2017,raw_FPL2018,remove_na = FALSE)
+# This following player had a name change
+clean_2017$next_season_cost[clean_2017$full_name=="damian emiliano martinez"]  <- 4.0
+clean_2017 <-  clean_2017  %>%  na.omit() 
+
+clean_2018 <- cleaning_further(raw_FPL2018, raw_FPL2019 )
+clean_2019 <- cleaning_further(raw_FPL2019, raw_FPL2020 ) 
+
+full_clean <- bind_rows(clean_2017, clean_2018, clean_2019) 
+
+glimpse(full_clean)
+```
+
+And with that we have obtained our data!
+
+# Model Creation
+
+Now with our dataset created, lets create a model using `tidymodels`!
+
+First we will split the data into a train and test set
+
+```{r,message=FALSE}
+library(tidymodels)
+
+set.seed(2021)
+fpl_split <-  initial_split(full_clean,strata = next_season_cost )
+
+fpl_train = training(fpl_split)
+fpl_test = testing(fpl_split)
+
+set.seed(2021)
+# We will use 10 fold cross validation
+folds <-  vfold_cv(fpl_train,v=10)
+```
+
+After some testing and playing around with the model earlier, I found that a linear regression model works best, even up against glm models that used various hyperparamters and against tuned random forests too.
+
+```{r}
+lm_mod <- recipe( next_season_cost ~ start_cost + cost_change_start +  element_type + total_points + minutes + transfers_in + transfers_out +
+                    selected_by_percent +  points_per_game +  value_season, data= fpl_train  ) %>% 
+  step_dummy(all_nominal_predictors())
+
+lm_spec <-linear_reg() %>%
+  set_engine('lm') %>% 
+  set_mode("regression")
+
+lm_wf <-  workflow() %>% 
+  add_model(lm_spec) %>% 
+  add_recipe(lm_mod)
+
+lm_fit_rs <-  lm_wf %>% 
+  fit_resamples(folds)
+
+lm_fit_rs %>% collect_metrics() 
+```
+
+Using cross validation, we get an average rmse score of 0.33, this means that on average the model's error is about £0.33m off. Not bad for a simple model!
+
+Let's see how the model performs on the holdout set
+
+```{r}
+test_pred <- lm_wf %>% fit(fpl_train) %>% 
+  predict(new_data = fpl_test) %>% 
+    bind_cols( fpl_test , . )
+  
+test_pred %>% 
+  rmse(truth = next_season_cost,estimate = .pred )
+```
+
+The rmse on the holdout set was 0.34 - very close to the training set's rmse. and we would expect the testing set to have a slightly higher rmse.
+
+One thing to note is that all player prices are rounded to the nearest £0.5m at the start of a season, eg if player is £8.61m, it would be rounded to £8.5m. Let's see the rmse for the rounded predictions
+
+```{r}
+test_pred %>% 
+  mutate(  round_pred = round(.pred/0.5)*0.5 ) %>% 
+  rmse(truth = next_season_cost,estimate = round_pred )
+```
+
+We get an rmse that's very close to the unrounded prices.
+
+Let's plot the the predicted prices against the true prices.
+
+```{r,message=FALSE}
+test_pred %>% 
+  ggplot(aes(x=.pred,y=next_season_cost)) +
+  geom_point(size=2,col="black") +
+  geom_abline(slope=1,lty=2,col="blue")+
+  geom_smooth(method="loess",col="red")+
+  labs(title="Predicted vs actual values of starting price on the test set",
+       subtitle="Dashed line represents line of best fit, red line represent model's general fit",
+       x="Predicted Price",y="Actual Price") +
+  scale_x_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"),breaks = seq(4,12,1))+
+  scale_y_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"),breaks = seq(4,12,1))+
+  theme_light()+
+  theme(plot.title.position = "plot")
+```
+
+We see that largely speaking we get quite good results overall. Let's try to see if a player's position may affects the model's performance.
+
+```{r,message=FALSE}
+test_pred %>% 
+  ggplot(aes(x=.pred,y=next_season_cost,col=element_type)) +
+  geom_point(size=2,show.legend = FALSE)+
+  facet_wrap(.~element_type,scales = "free")+
+  geom_abline(slope=1,lty=2,col="black")+
+  geom_smooth(method="loess",col="black")+
+  scale_color_brewer(palette="Set1")+
+  labs(title="Predicted vs actual values of starting price on the test set by player position",
+       subtitle="Dashed line represents line of best fit, thick line represent model's general fit",
+       x="Predicted Price",y="Actual Price") +
+  scale_x_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"))+
+  scale_y_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"))+
+  theme_bw()+
+  theme(plot.title.position = "plot")
+```
+
+We see what is happening! Our model is doing very well on midfielders and forwards, however our model is overestimating expensive players that play as goalkeepers or defenders. Perhaps a better method would be create a model for each position? That way we can incorporate important attributes for defensive players likes cleansheets, saves and goals conceded.
+
+While we are looking at the different positions, let's see how the rmse varies with position.
+
+```{r}
+test_pred %>% 
+  group_by(element_type) %>% 
+  rmse(truth = next_season_cost,estimate=.pred)  
+```
+
+We see that goalkeepers and defenders tend to have good rmse values, while the mid has an rmse that is slightly worse. Forwards have an price error of nearly £0.5m!
+
+Let's now fit the data to the entire dataset available and explore what the coefficients conclude.
+
+# The model
+
+We fit the model on our train + test set (which was `full_clean`)
+
+```{r}
+full_model <-  lm_wf %>%  fit(full_clean)
+```
+
+Let's see what the coefficients tell us. Note that the confidence intervals for the coefficient estimates are shown as well at the 95% level.
+
+```{r}
+lm_coefs <-  full_model %>% 
+  pull_workflow_fit() %>% 
+  tidy(conf.int=TRUE) 
+
+lm_coefs %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped"),full_width = F) 
+```
+
+-   We see that the the higher the initial cost of a player the higher their next season price will be. A positive price change from the start will also increase the player's price, but a negative one will lead to a decrease.
+
+```{=html}
+<!-- -->
+```
+-   The values of points per game and total points also increase the players starting price.
+
+-   There is evidence to suggest that the selection by percent variable is not statistical significant in our model.
+
+-   Larger number of transfers in increases the next season's start price, while larger number of transfers out decreases it.
+
+-   The more minutes and and the higher the value over season a players contributes to a decrease in starting price.
+
+-   For the positions, there is evidence to suggests that a defender is not priced differently than a goalkeeper. While a midfielder is £0.31m more expensive than a goalkeeper, and a forward is £0.28 more expensive than a goalkeeper.
+
+We can view the results on a plot too
+
+```{r}
+lm_coefs  %>% 
+  filter(term != "(Intercept)",
+         !str_starts(term,"element_type")  ) %>% 
+  mutate( term = fct_reorder(term,estimate) ) %>% 
+  mutate(  is_signif =   if_else( p.value < 0.05,TRUE,FALSE)) %>% 
+  ggplot()+
+  geom_errorbarh(aes(xmin=conf.low,xmax=conf.high,y=term,col=is_signif ))+
+  geom_point(aes(x=estimate,y=term))+
+  geom_vline(xintercept = 0,lty=2,col="blue")+
+  labs(title = "Coefficient estimates for linear regression model",
+       x="Estimated value",y="Variable",
+       col="p value < 0.05?")+
+  scale_color_manual(values=c("red3","forestgreen"))+
+  guides(color = guide_legend(reverse = TRUE))+
+  theme_light()+
+  theme(plot.title.position = "plot")
+```
+
+Let's see how the player position changes the next season starting price.
+
+```{r}
+lm_coefs  %>% 
+  filter(str_starts(term,"element_type")  ) %>% 
+  mutate( term = str_remove_all(term,"element_type_") ) %>% 
+  mutate( term =  factor(term,levels=c("DEF","MID","FWD")) ) %>% 
+  mutate(  is_signif =   if_else( p.value < 0.05,TRUE,FALSE)) %>% 
+  ggplot()+
+  geom_errorbarh(aes(xmin=conf.low,xmax=conf.high,y=term,col=is_signif ))+
+  geom_point(aes(x=estimate,y=term))+
+  geom_vline(xintercept = 0,lty=2)+
+  labs( title = "Difference from Goalkeeper price",
+        subtitle = "Coefficient estimates for posistions",
+        x="Estimated value",y="Variable",
+        col="p value < 0.05?")+
+  scale_color_manual(values=c("red3","forestgreen"))+
+  guides(color = guide_legend(reverse = TRUE))+
+  theme_light()+
+  theme(plot.title.position = "plot")
+```
+
+From this see that defenders aren't different from goalkeepers, and midfielders tend to be the most expensive position available.
+
+## Extra look
+
+Let's look at the fit on the full dataset.
+
+```{r,message=FALSE}
+full_pred <-  full_model  %>% 
+  predict(new_data=full_clean) %>% 
+  bind_cols(full_clean,. ) 
+
+full_pred %>% 
+    ggplot(aes(x=.pred,y=next_season_cost,col=element_type)) +
+  geom_point(size=2) +
+  geom_abline(slope=1,lty=2,col="blue")+
+  geom_smooth(method="loess",col="darkorange")+
+  labs(title="Predicted vs actual values of starting price on the full dataset",
+       subtitle="Dashed line represents line of best fit, orange line represent model's general fit",
+       x="Predicted Price",y="Actual Price",col="Position") +
+  scale_x_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"),breaks = seq(4,13,1))+
+  scale_y_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"),breaks = seq(4,13,1))+
+    scale_color_brewer(palette="Set1")+
+  theme_light()+
+  theme(plot.title.position = "plot")
+```
+
+Overall, it does well but there are a few noticeable points that deviate far from what was actually happened. Let's break it down by posistion.
+
+```{r,message=FALSE}
+full_pred %>% 
+  ggplot(aes(x=.pred,y=next_season_cost,col=element_type)) +
+  geom_point(size=2,show.legend = FALSE)+
+  facet_wrap(.~element_type,scales = "free")+
+  geom_abline(slope=1,lty=2,col="black")+
+  geom_smooth(method="loess",col="black")+
+  scale_color_brewer(palette="Set1")+
+  labs(title="Predicted vs actual values of starting price on the full dataset by player position",
+       subtitle="Dashed line represents line of best fit, thick line represent model's general fit",
+       x="Predicted Price",y="Actual Price") +
+  scale_x_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"))+
+  scale_y_continuous(labels = scales::label_dollar(prefix = "£",suffix = "m"))+
+  theme_bw()+
+  theme(plot.title.position = "plot")
+```
+
+The model generally does well for MID and FWD, but doesn't do great with expensive GK and DEF. This was something we noticed earlier.
+
+# Predicting FPL 2021/22 season prices
+
+Now we will use the data from the 2020/21 season and try to predict the prices for the next season of FPL
+
+```{r,message=FALSE}
+clean_2020 <- clean_df(raw_FPL2020)
+
+
+FPL2021_preds <-  full_model %>% 
+    predict(new_data = clean_2020) %>% 
+#  predict(new_data = clean_2020,type="pred_int") %>% 
+  bind_cols(clean_2020,.) %>% 
+  bind_cols(full_model %>%  predict(new_data = clean_2020,type="pred_int"))
+
+
+
+FPL2020_teams <- read_csv(file="https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/2020-21/teams.csv")
+FPL2020_teams <- FPL2020_teams %>% 
+  select(id,name)
+
+FPL2021_prices <-  FPL2021_preds %>% 
+  left_join(FPL2020_teams,by =  c("team"="id")       ) %>% 
+  left_join(raw_FPL2020 %>% select(id,web_name) , by = "id" ) %>% 
+  mutate( price_diff = .pred - final_cost)  %>% 
+  select(id,full_name,web_name,element_type,team=name,minutes,total_points,start_cost,final_cost,.pred,price_diff,.pred_lower,.pred_upper) %>% 
+  mutate( full_name = str_to_title(full_name),
+          team = as.factor(team)) %>% 
+  arrange(team,element_type)
+  
+
+
+FPL2021_prices %>% 
+  mutate(  across(.pred:.pred_upper, ~ round(.x,1) ) ) %>% 
+  select(-id,-full_name) %>% 
+  select("Name"=1,"Position"=2,"Team"=3,"Minutes Played"=4,"Total Points"=5,"Start Cost (2020/21)"=6,"Final Cost (2020/21)"=7,
+         "Predicted Start Cost (2021/22)"=8,"Price Change"=9,"Predicted Lower Bound"=10,"Predicted Higher Bound"=11) %>% 
+DT::datatable(filter = "top")
+
+```
+
+```{r,fig.width=10,fig.height=9}
+FPL2021_prices %>% 
+  group_by(team) %>% 
+  mutate( web_name = fct_reorder(web_name,as.numeric(element_type),.fun = mean )) %>% 
+  mutate( web_name = tidytext::reorder_within(web_name,as.numeric(element_type),team )) %>% 
+  slice_max(order_by = minutes,n=15) %>% 
+  ggplot(aes(col=element_type))+
+  geom_errorbarh(aes(y=web_name,xmin=.pred_lower,xmax=.pred_upper )) +
+  geom_point((aes(x=.pred,y=web_name)))+
+  facet_wrap(.~team,scales="free_y")+
+  tidytext::scale_y_reordered()+
+  scale_x_continuous(breaks = seq(0,13.5,2))+
+  scale_color_brewer(palette="Set1")+
+  labs(title="Predicted starting prices for players",
+       subtitle = "95% prediction interval for top 15 players in team by minutes played",
+       x="Predicted Price (£m)",y="",col="Position")+
+  theme_bw()+
+  theme(plot.title.position = "plot",
+        legend.position = "top",
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(colour = "grey80"))
+```
+
+## Out of position players
+
+One of the limitations of the model is that it doesn't predict or taken into account a potential change in player position. This is due to the powers that be at FPL, whom can change what a player's designated position is from season to season. The model does not consider a change in player position, which could over or underestimate a player's price depending on the previous and new positions.
+
+One such player is Stuart Dallas from Leeds. During the 2020/21 season, he was designated as a DEF in FPL but during the live matches he played more of a midfielder role, and scored many attacking points like assists or goals. This lead to him obtaining points from attacking returns and also cleansheets as defenders get more points for cleansheets than midfielders do. It is extremely likely that he will be designated as a MID for the 2021/22 season. Let's see what his new price prediction is.
+
+```{r}
+dallas <-  clean_2020 %>% 
+  filter( full_name == "stuart dallas")
+
+dallas_def <-  dallas %>% bind_cols(full_model %>% predict(new_data=dallas),
+                                    full_model %>% predict(new_data=dallas,type="pred_int")) %>% 
+  select(full_name,.pred,.pred_lower,.pred_upper) %>% 
+  mutate("position"="DEF")
+
+# Change Dallas from DEF to MID
+dallas$element_type <- "MID"
+
+dallas_mid <- dallas %>% bind_cols(full_model %>% predict(new_data=dallas),
+                                   full_model %>% predict(new_data=dallas,type="pred_int")) %>% 
+  select(full_name,.pred,.pred_lower,.pred_upper)%>% 
+  mutate("position"="MID")
+
+
+bind_rows(dallas_def,dallas_mid ) %>% 
+  mutate( across( .cols =  .pred:.pred_upper, .fns =  function(.x) round(.x,1)     )   ) %>% 
+  ggplot()+
+  geom_errorbar(aes(ymin=.pred_lower,ymax=.pred_upper,x=position),width=.2 )+
+  geom_point((aes(y=.pred,x=position)))+
+  scale_y_continuous(labels =  scales::label_dollar(prefix = "£",suffix = "m"),limits = c(6,8,.5))+
+  labs(title="Stuart Dallas is likely to be priced higher as a midfielder than a defender",
+       subtitle = "Predicted starting price with 95% prediction interval",
+       x="Position",y="Predicted Price (£m)")+
+  theme_light()+
+  theme(plot.title.position = "plot",
+        panel.grid.major.x = element_blank()
+        )
+```
+
+We could also have gotten this by noting that the different between the regression coefficients of `element_type_MID` and `element_type_DEF`. The difference is $0.31 - 0.06 = 0.25$. Thus Dallas would be £0.25m more expensive as a midfielder than defender.
+
+We can also work out how much more expensive/cheaper a player would be if a position was changed. Based on the regression coefficients for `element_type_x`, we get
+
+-   From DEF to MID, a price increase of £0.25m
+-   From MID to FWD, a price decrease of £0.03m
+
+To get the reverse of these simply change the sign i.e. FWD to MID would be price increase of £0.03m and MID to DEF would be price decrease of £0.25m.
+
+# Limitations of the model
+
+What does the model not do well with? Well we have seen that the model does not take into account a change in players position, and earlier it was noticed that it doesn't do well with expensive defenders or goalkeepers.
+
+The rmse is also highest for forwards, out of all the other positions. Creating a model that takes into account goals and assists may be beneficial. We could include features like a player's "percent of goals scored by team". This way if a player doesn't score many goals compared to their other counterparts, but scores a proportion of goals for a team then could that player be classed as a talisman and hence have a higher price? Further research would be needed.
+
+Another thing it is unable to predict is the price of players from newly promoted teams. Creating another model would be needed here since our current model uses information like the number of transfers and FPL points to predict next season's starting price.
+
+The model also does not take into account player team transfers. At the end of a season players are able to be move to another club depending on the terms of their contract. A player moving up to a "higher tier" club may be priced differently than if he were to remain at the same club or even "lower tier". This is because a move may mean the player has the potential to play more or less minutes depending on the team, it is also true that the quality of the team will also be different, so a player with a potential to be in a "high tier" club may be surrounded by good players who can return more points, but being in a strong team.
+
+An additional consideration maybe important events like European trophy campaigns and national team evens like the European Championships or the World Cup. It is possible that players who performed well at these events may get a price increase, but we would actually need to look at the data to see if there's anything of significance here.
+
+# Conclusion
+
+We have attempted to predict the next season's price given data about the current season and we have managed to get an error rate of about 0.33 using rmse. The linear regression works very well considering it is a very simple model, but this goes to show that even something simple can do the job!
+
+I may do another blogpost on this matter when the next season's prices are actually released and we can compare how our model performed against reality.
