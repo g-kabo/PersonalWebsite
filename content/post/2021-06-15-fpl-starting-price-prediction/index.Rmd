@@ -10,8 +10,6 @@ description: ''
 topics: []
 ---
 
-CHANGE!
-
 As of this post being written the 2020/21 season of FPL has concluded and the 2021/22 season has yet to be started. Since the 2021/22 hasn't started this means that the prices for the players for next season haven't been released. So I thought this would be a good opportunity to use some machine learning algorithms to predict the next seasons starting price for a player.
 
 First, we will need to collect the data and there is an excellent repo on github that contains data from the past seasons of FPL. This link to the repo is [here](https://github.com/vaastav/Fantasy-Premier-League).
