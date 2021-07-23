@@ -1,0 +1,637 @@
+---
+title: XGBoost with Tidymodels and How to Interpret Models
+author: ''
+date: '2021-07-20'
+slug: []
+categories: []
+tags:
+  - data modelling
+description: ''
+topics: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Today we will use XGBoost with Tidymodels to create a model for a specific dataset, and then use the <code>DALEX</code> and <code>DALEXtra</code> packages to interpret this model, which is well known for being a black-box model.</p>
+<p>The dataset we will use is the <a href="https://www.kaggle.com/sakshigoyal7/credit-card-customers">Credit Card customers dataset</a> from Kaggle, and it deals with credit data for customers and contains information about customer attrition. Thus the business problem is predicting customer churn.</p>
+<p>I will briefly explain the the attributes of the data</p>
+<ul>
+<li><code>attrition_flag</code> - Whether a customer attrited. Our target variable. NOTE, for sake of simplicity this will be turned into a binary variable called <code>is_churned</code> with 1 being a customer churning and 0 otherwise.</li>
+<li><code>customer_age</code> - Age of a customer</li>
+<li><code>gender</code> - Gender of customer</li>
+<li><code>dependent_count</code> - Number of dependents</li>
+<li><code>education_level</code> - Education qualification of customer</li>
+<li><code>marital_status</code> - Marital status of customer</li>
+<li><code>income_category</code> - Annual income category of the customer</li>
+<li><code>card_category</code> - Type of card</li>
+<li><code>months_on_book</code> - Period of relationship with bank</li>
+<li><code>total_relationship_count</code> - Number of products held by the customer</li>
+<li><code>months_inactive_12_mon</code> - Number of months inactive over the past 12 months</li>
+<li><code>contacts_count_12_mon</code> - Number of contacts with customer over the past 12 months</li>
+<li><code>credit_limit</code> - Credit limit on the credit card</li>
+<li><code>total_revolving_bal</code> - The total revolving balance on the credit card. Also means amount of credit used</li>
+<li><code>avg_open_to_buy</code> - Amount of credit available</li>
+<li><code>total_amt_chng_q4_q1</code> - Change in the transaction amount (Q4 over Q1)</li>
+<li><code>total_trans_amt</code> - Total transaction amount over the past 12 months</li>
+<li><code>total_trans_ct</code> - Number of transactions over the past 12 months</li>
+<li><code>total_ct_chng_q4_q1</code> - Change in the transaction count (Q4 over Q1)</li>
+<li><code>avg_utilization_ratio</code> - Average card utilization ratio. Also the ratio of credit used over credit limit</li>
+</ul>
+<div id="loading-libraries" class="section level1">
+<h1>Loading Libraries</h1>
+<p>We will use several packages to aid us.</p>
+<pre class="r"><code>knitr::opts_chunk$set(message=FALSE,warning = FALSE)</code></pre>
+<pre class="r"><code>library(tidyverse)
+library(tidymodels)
+library(correlationfunnel) # To use correlation funnel to view correlations.
+library(patchwork)
+library(gghighlight)</code></pre>
+</div>
+<div id="eda" class="section level1">
+<h1>EDA</h1>
+<p>First we read the data and clean it, this involves turning characters into ordered factors</p>
+<pre class="r"><code>bank_churn &lt;- read_csv(here::here(&quot;static/data/BankChurners.csv&quot;)) %&gt;% 
+  janitor::clean_names() %&gt;% 
+  select(1:21) %&gt;% 
+  
+  # Simplifying our target variable to be binary variable
+  mutate(is_churned = ifelse(attrition_flag == &quot;Attrited Customer&quot;,&quot;yes&quot; , &quot;no&quot;)) %&gt;%
+  mutate(is_churned = factor(is_churned,levels = c(&quot;yes&quot;,&quot;no&quot;))) %&gt;% 
+  select(-attrition_flag)  %&gt;% 
+  mutate( across(  c(gender,education_level,marital_status,income_category,
+                     card_category,dependent_count,total_relationship_count) , ~as.factor(.x)    ) )
+
+# Create levels for factors
+edu_levels &lt;- c(&quot;Unknown&quot;,&quot;Uneducated&quot;,&quot;High School&quot;,&quot;College&quot;,&quot;Graduate&quot;,&quot;Post-Graduate&quot;,&quot;Doctorate&quot;)
+inc_levels &lt;- c(&quot;Unknown&quot;,&quot;Less than $40K&quot;,&quot;$40K - $60K&quot;,&quot;$60K - $80K&quot;,&quot;$80K - $120K&quot;,&quot;$120K +&quot;)
+card_levels &lt;- c(&quot;Blue&quot;,&quot;Silver&quot;,&quot;Gold&quot;,&quot;Platinum&quot;)
+
+
+bank_churn &lt;- bank_churn %&gt;% 
+  mutate( education_level = factor( education_level, levels = edu_levels ,),
+          income_category = factor( income_category, levels = inc_levels ),
+          card_category = factor( card_category, levels = card_levels,ordered = TRUE ),
+          dependent_count = factor(dependent_count, ordered = TRUE),
+          total_relationship_count = factor(total_relationship_count, ordered = TRUE)
+  )
+
+# Split the data in to a train and test set
+set.seed(1234)
+churn_split &lt;-  initial_split(bank_churn,strata = is_churned,prop = 0.6)
+train &lt;- training(churn_split)
+test &lt;- testing(churn_split)</code></pre>
+<p>Let’s look at our target variable</p>
+<pre class="r"><code>ggplot(train,aes(x=is_churned,fill=is_churned))+
+  geom_bar(show.legend = F,alpha=0.9)+
+  geom_text(aes(label = ..count..), stat = &quot;count&quot;,vjust=2,col=&quot;white&quot;)+
+  scale_fill_brewer(palette=&quot;Set1&quot;) +
+  theme_minimal()+
+  labs(title=&quot;Only a small proportion of customers attrited&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>We have an unequal distribution for our target variable. There is a small minority of customers who did churn, we could deal with this in several ways, such as downsampling the distribution, using the SMOTE algorithm to create synthetic observations to create an equal balance. We will not use any of these, instead we will use the log loss metric. This will optimize the certainty of a prediction.</p>
+<p>Let’s get a feel of the data and try to see how churn rate is affect by the variables available to us. First we will look at categorical variables</p>
+<pre class="r"><code>summarized_churn &lt;- function(df,x_var,y_var){ 
+  
+  # Helper function to summarize churn
+  
+  
+  df %&gt;%
+    group_by(  {{x_var}},{{y_var}} ) %&gt;%
+    #  summarise(count = n(),.groups = &quot;drop_last&quot;) %&gt;%
+    summarise(count = n(),.groups = &quot;keep&quot;) %&gt;%
+    ungroup({{y_var}} ) %&gt;% 
+    mutate(x_count = sum(count),
+           pct = count/sum(count)) %&gt;%
+    ungroup() 
+}
+
+gg_mosaic &lt;- function(df,x_var,y_var){
+  
+  # Helper function to create mosaic plots for categorical data
+  
+  x_var &lt;- ensym(x_var)
+  y_var &lt;- ensym(y_var)
+  
+  ggplot(data = df, aes(x =  !!x_var, y = pct, width = x_count, fill = !!y_var )) +
+    geom_bar(stat = &quot;identity&quot;, position = &quot;fill&quot;, colour = &quot;black&quot;) +
+     geom_text(aes(label = scales::percent(pct,accuracy = 0.1)), position = position_stack(vjust = 0.5)) + # if labels are desired
+      scale_fill_brewer(palette=&quot;Pastel1&quot;,direction = 11) +
+    scale_y_continuous(labels = percent_format())+
+    facet_grid(cols = vars(!!x_var) , scales = &quot;free_x&quot;, space = &quot;free_x&quot;)+
+    labs(y=&quot;Percent&quot;)+
+    theme_minimal()+
+    theme(legend.position = &quot;bottom&quot;)
+}</code></pre>
+<p>The <code>gg_mosaic</code> plots show the proportion of customer who churned, grouped by a particular categorical variable. The width of the bars show how common it appears in the dataset. Larger width mean it is common, while small widths mean it appears rarely.</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(gender,is_churned) %&gt;%   
+  gg_mosaic(gender,is_churned) +
+  ggtitle(&quot;Women are slightly more likely to churn than Men&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>We see that women are have a slightly higher churn rate, but this could be a statistically insignificant difference.</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(income_category,is_churned) %&gt;%   
+  gg_mosaic(income_category,is_churned) +
+  ggtitle(&quot;Income category does not appear to have a linear affect on churn rate&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>There are many customers in the dataset who earn less than $40k, but increasing the income a customer has does not strictly decrease the churn rate, where we see customers with incomes above $80k, actually increase in churn rate.</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(education_level,is_churned) %&gt;%   
+  gg_mosaic(education_level,is_churned) +
+  ggtitle(&quot;Education level does not appear to have any real affect on churn rate&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>What we see with education level is that the churn rate doesn’t really change with education level.</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(marital_status,is_churned) %&gt;%   
+  gg_mosaic(marital_status,is_churned) +
+  ggtitle(&quot;Marital status does not appear to have any real affect on churn rate&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>Most customers were either single or married,, but the churn rate doesn’t appear to change all too much.</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(card_category,is_churned) %&gt;%   
+  gg_mosaic(card_category,is_churned) +
+  ggtitle(&quot;The vast majority of cards owned were Blue cards&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>Most customers owned a Blue card, the proportions with which churn rate differed by card rate are hard to tell.</p>
+<pre class="r"><code>train %&gt;% 
+group_by(card_category) %&gt;% 
+  count(name = &quot;card_count&quot;) %&gt;% 
+  ungroup() %&gt;% 
+  mutate( pct =  round(card_count / sum(card_count)*100,2)  )</code></pre>
+<pre><code>## # A tibble: 4 x 3
+##   card_category card_count   pct
+##   &lt;ord&gt;              &lt;int&gt; &lt;dbl&gt;
+## 1 Blue                5669 93.3 
+## 2 Silver               328  5.4 
+## 3 Gold                  71  1.17
+## 4 Platinum               9  0.15</code></pre>
+<p>The card types available are Blue, Silver, Gold, and Platinum. Less than 2% of all individuals in our dataset own a Gold card, while less than 0.2% own a Platinum card. Binning these two rare categories could help our model.</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(dependent_count,is_churned) %&gt;%   
+  gg_mosaic(dependent_count,is_churned) +
+  ggtitle(&quot;The number of dependants does not affect churn rate&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>The number of dependants a customer has does not affect churn rate</p>
+<pre class="r"><code>train %&gt;% 
+summarized_churn(total_relationship_count,is_churned) %&gt;%   
+  gg_mosaic(total_relationship_count,is_churned) +
+  ggtitle(&quot;Customer who own no more than 2 products are more likely to churn\nthan those that don&#39;t&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>We finally see an interesting relationship! It seems like the fewer products a customer owns, the higher the churn rate.</p>
+<div id="correlation-with-target-variable" class="section level2">
+<h2>Correlation with target variable</h2>
+<p>Let’s see how the variables correlate with the target variable. We will use the <code>correlate()</code> function from the <code>correlationfunnel</code> library to view any significant correlations.</p>
+<pre class="r"><code>train %&gt;% 
+  #select(-clientnum) %&gt;% # Not that clienum is an id variable 
+                          # so there should be almost no correlation between this value 
+                          # and a customer churning
+   binarize(n_bins = 4, thresh_infreq = 0.02) %&gt;% 
+  correlate(target = is_churned__yes) %&gt;% 
+    plot_correlation_funnel(interactive = FALSE)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-14-1.png" width="960" /></p>
+<p>What the above shows, is that when all numeric variables are binned into 4 buckets and categorical data are binned to other if they appear less than 2% in the data, the variables most associated with a customer churning are:</p>
+<ul>
+<li>Total transaction counts change lower than 0.579</li>
+<li>Total revolving balance below 417</li>
+<li>Total transaction counts below 0.025</li>
+<li>Total transaction amounts between 2156,3874</li>
+</ul>
+<p>The least correlated are the categorical variables like: card category, marital status, income category and education level. Other continuous variables like age are not important.</p>
+<p>Let’s visualize the data some of these relationships.</p>
+<pre class="r"><code>p1 &lt;- train %&gt;% 
+  ggplot(aes(x=total_ct_chng_q4_q1,fill=is_churned))+
+  geom_histogram(position = &quot;identity&quot;,alpha=0.5,binwidth = 0.05)+
+ # geom_density(alpha=0.5)+
+  scale_fill_brewer(palette = &quot;Set1&quot;)+
+  theme_minimal()+
+  labs(title=&quot;Total transaction count change Q4-Q1&quot;)
+
+p2 &lt;- train %&gt;% 
+  ggplot(aes(x=total_revolving_bal,fill=is_churned))+
+  geom_histogram(position = &quot;identity&quot;,alpha=0.5,bins=40)+
+  scale_fill_brewer(palette = &quot;Set1&quot;)+
+  theme_minimal()+
+  labs(title=&quot;Total revolving balance&quot;)
+
+p3 &lt;-  train %&gt;% 
+  ggplot(aes(x=total_trans_ct,fill=is_churned))+
+  geom_histogram(position = &quot;identity&quot;,alpha=0.5,binwidth =3)+
+  scale_fill_brewer(palette = &quot;Set1&quot;)+
+  theme_minimal()+
+  labs(title=&quot;Total transaction count&quot;)
+
+p4 &lt;-train %&gt;% 
+  ggplot(aes(x=avg_utilization_ratio,fill=is_churned))+
+  geom_histogram(position = &quot;identity&quot;,alpha=0.5,bins=40)+
+  scale_fill_brewer(palette = &quot;Set1&quot;)+
+  theme_minimal()+
+  labs(title=&quot;Credit utilization ratios&quot;)
+
+
+
+(p1+p2)/(p3+p4)+plot_layout(guides = &quot;collect&quot;)+plot_annotation(title=&quot;Distributions of variable correlated with customer churn&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-15-1.png" width="960" /></p>
+<p>We see
+* Low values of total transaction count change can lead to churn
+* A total revolving balance less than 500 can lead to churn
+* A total transaction count between 0 and 75carries elevated changes of churn
+* Very low utilization ratios can lead to churn</p>
+<p>A common theme seems to be low levels of usage can increase the risk of churn.</p>
+<p>Let’s view plots of variables that seem to be connected. Let’s start with total transaction counts and amounts</p>
+<pre class="r"><code>train %&gt;% 
+  ggplot(aes(x=total_trans_ct,y=total_trans_amt,col=is_churned))+
+  geom_point(alpha=0.3)+
+  scale_color_brewer(palette = &quot;Set1&quot;)+
+  scale_y_log10()+
+  labs(title=&quot;Transaction counts below 100 and transaction amounts below 10,000 are signs of churn&quot;,
+       subtitle = &quot;Total transaction counts vs total transaction amounts colourd by whether a customer churned.\n(Note y-axis on log scale)&quot;,
+       x=&quot;Total Transaction Count&quot;,y=&quot;Total Transaction Amount&quot;)+
+  theme_minimal()+
+  theme(legend.position = &quot;bottom&quot;,
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p>It was noted earlier that low relationship counts had higher churn rates, could we see this visually?</p>
+<pre class="r"><code>train %&gt;% 
+  ggplot(aes(x=total_trans_ct,y=total_trans_amt,col=is_churned))+
+  geom_point(alpha=0.3)+
+  scale_color_brewer(palette = &quot;Set1&quot;)+
+  scale_y_log10()+
+  facet_wrap(.~total_relationship_count,nrow=1)+
+  labs(title=&quot;Low number of relationships, transaction amounts and counts have high churn rates&quot;,
+       subtitle = &quot;Total transaction counts vs total transaction amounts, faceted by number of products owned.\n(Note y-axis on log scale)&quot;,
+       x=&quot;Total Transaction Count&quot;,y=&quot;Total Transaction Amount&quot;)+
+  theme_bw()+
+  theme(legend.position = &quot;bottom&quot;,
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>Ah-ha! We see an interesting interaction effect. It seems that customers who own less than 2 products and have transaction counts below 50 and transaction amounts below 10,000 have a large chance of churning.</p>
+<p>We can introduce another variable called <code>total_trans_avg</code> which is defined as <code>total_trans_amt</code> divided by <code>total_trans_ct</code>.</p>
+<pre class="r"><code>p1 &lt;- train %&gt;% 
+#  mutate(total_trans_avg = total_trans_amt/total_trans_ct ) %&gt;% 
+  ggplot(aes(x=total_trans_amt,fill=is_churned))+
+  geom_histogram(position = &quot;identity&quot;,alpha=0.5,bins = 100)+
+  scale_fill_brewer(palette = &quot;Set1&quot;)+
+  labs(title=&quot;Distribution of total transaction amount&quot;)+
+  theme_minimal()
+
+p2 &lt;- train %&gt;% 
+  mutate(total_trans_avg = total_trans_amt/total_trans_ct ) %&gt;% 
+  ggplot(aes(x=total_trans_avg,fill=is_churned))+
+  geom_histogram(position = &quot;identity&quot;,alpha=0.5,binwidth = 2)+
+  scale_fill_brewer(palette = &quot;Set1&quot;)+
+  labs(title=&quot;Distribution of total transaction average&quot;,
+       subtitle = &quot;Total transaction average defined as ratio of total transaction amount and total transaction count &quot;)+
+  theme_minimal()
+
+p3 &lt;- train %&gt;% 
+  mutate(total_trans_avg = total_trans_amt/total_trans_ct ) %&gt;% 
+  ggplot(aes(x=total_trans_ct,y=total_trans_avg,col=is_churned))+
+  geom_point(alpha=0.4)+
+  scale_color_brewer(palette = &quot;Set1&quot;)+
+  labs(title=&quot;Total transaction count vs total transaction average&quot;)+
+  theme_minimal()
+
+p4 &lt;- train %&gt;% 
+  mutate(total_trans_avg = total_trans_amt/total_trans_ct ) %&gt;% 
+  ggplot(aes(x=total_trans_amt,y=total_trans_avg,col=is_churned))+
+  geom_point(alpha=0.4)+
+  scale_color_brewer(palette = &quot;Set1&quot;)+
+    labs(title=&quot;Total transaction amount vs total transaction average&quot;)+
+  theme_minimal()
+
+
+(p1+p2)/(p3+p4)+plot_layout(guides = &quot;collect&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-18-1.png" width="960" /></p>
+<p>By pairing the total transaction average with its original parts we can some structure with regards to customer churn clusters</p>
+<p>Let’s look at another pair of variable that maybe related. This time <code>total_ct_chng_q4_q1</code> and <code>total_amt_chng_q4_q1</code> and</p>
+<pre class="r"><code>train %&gt;% 
+  select(ends_with(&quot;Q4_Q1&quot;),is_churned ) %&gt;% 
+ggplot(aes(y=total_amt_chng_q4_q1,x=total_ct_chng_q4_q1,col=is_churned))+
+  geom_point()+
+  scale_color_brewer(palette=&quot;Set1&quot;) +
+  gghighlight(is_churned == &quot;yes&quot;,use_direct_label = F)+
+  geom_vline(xintercept = 1,lty=2)+
+  geom_hline(yintercept = 1,lty=2)+
+  labs(title=&quot;Most customer churns occur when transaction changes Q4-Q1 in counts and amounts are less than 1 &quot;,
+       x=&quot;Transaction count change from (Q4-Q1)&quot;,
+       y=&quot;Transction amount change from (Q4-Q1)&quot;)+
+  theme_bw()+
+  theme(legend.position = &quot;bottom&quot;,
+        plot.title.position = &quot;plot&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p>We see that when the transaction change in counts and amounts is less than 1, there are many churns. We also see that when both quantities are above 1, there are very few churns. We can encode this information as another variable called <code>inactivity_level</code></p>
+<pre class="r"><code>train %&gt;% 
+  mutate( low_amt_chng = if_else(total_amt_chng_q4_q1&lt;1,1,0)  ) %&gt;% 
+  mutate( low_ct_chng = if_else(total_ct_chng_q4_q1&lt;1,1,0)  ) %&gt;% 
+  mutate( inactivity_level = factor(low_amt_chng + low_ct_chng,ordered = T )) %&gt;%
+  summarized_churn(inactivity_level,is_churned) %&gt;% 
+  gg_mosaic(inactivity_level,is_churned)+
+  labs(title=&quot;Higher levels of inactivity lead to higher churn rates&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<p>We can also define the product of the change quantities, the idea is that customers with high values for both will grow above 1, while those with changes below 1 will have their product shrink closer to zero.</p>
+</div>
+</div>
+<div id="building-a-model" class="section level1">
+<h1>Building a model</h1>
+<p>We will change our data to include our findings</p>
+<pre class="r"><code>bank_churn &lt;- bank_churn %&gt;% 
+  #  select(ends_with(&quot;Q4_Q1&quot;),is_churned,total_trans_amt,total_trans_ct ) %&gt;% 
+  mutate( total_avg_chng = if_else(total_ct_chng_q4_q1 == 0,0, total_amt_chng_q4_q1/total_ct_chng_q4_q1)) %&gt;% 
+  mutate( product_chng = total_amt_chng_q4_q1*total_ct_chng_q4_q1 )  %&gt;% 
+  mutate( low_amt_chng = if_else(total_amt_chng_q4_q1&lt;1,1,0)  ) %&gt;% 
+  mutate( low_ct_chng = if_else(total_ct_chng_q4_q1&lt;1,1,0)  ) %&gt;% 
+  mutate( inactivity_level = factor(low_amt_chng + low_ct_chng,ordered = T )) %&gt;%
+  mutate(total_trans_avg = total_trans_amt/total_trans_ct ) %&gt;% 
+  select(-low_ct_chng,-low_amt_chng)</code></pre>
+<p>We follow the tidymodels framework to create an XGBoost model.</p>
+<pre class="r"><code>set.seed(1234)
+churn_split &lt;-  initial_split(bank_churn,strata = is_churned,prop = 0.6)
+train &lt;- training(churn_split)
+test &lt;- testing(churn_split)
+
+set.seed(241)
+train_folds &lt;-  vfold_cv(train,strata = is_churned ,v = 10)
+churn_metrics &lt;-  metric_set(mn_log_loss )
+
+churn_rec &lt;-  recipe( is_churned ~ .,data=train ) %&gt;%
+  step_other(all_nominal_predictors(),threshold = 0.02) %&gt;%
+  step_dummy(all_nominal_predictors() ) %&gt;%
+  step_rm(clientnum)
+
+boost_tree_xgboost_spec &lt;-
+  boost_tree(tree_depth = tune(),
+             trees = 1000,
+             learn_rate = 0.02,
+             min_n = tune()   ,
+             mtry = tune(),
+             ) %&gt;%
+  set_engine(&#39;xgboost&#39;) %&gt;%
+  set_mode(&#39;classification&#39;)
+
+xgboost_wf &lt;-  workflow() %&gt;%
+  add_recipe(churn_rec ) %&gt;%
+  add_model(boost_tree_xgboost_spec )</code></pre>
+<p>Now we set the hyperparameters we want to tune</p>
+<pre class="r"><code>xgboost_params &lt;-  parameters(tree_depth(range = c(4,8)),
+                              min_n(range = c(2,5)),
+                              finalize(mtry(range = c(10,20)), train) )
+
+set.seed(1001)
+xgboost_grid &lt;- grid_max_entropy(xgboost_params, size = 3)</code></pre>
+<p>Here we actually tune the model and obtain the results. (I have already chosen a good enough range of values from doing some testing prior to writing this post)</p>
+<pre class="r"><code>doParallel::registerDoParallel()
+
+xgboost_tuned &lt;- tune_grid(
+    object    = xgboost_wf,
+    resamples = train_folds,
+    grid      = xgboost_grid,
+    metrics   = churn_metrics,
+    control   = control_grid(save_pred = TRUE)
+)
+
+xgboost_tuned %&gt;%
+  collect_metrics() %&gt;%
+  select(.metric,mean,mtry,min_n,tree_depth) %&gt;%
+  pivot_longer(cols = mtry:tree_depth) %&gt;%
+  ggplot(aes(x=value,y=mean,col=name))+
+  geom_point(size=3)+
+  facet_wrap(.~name,scales = &quot;free_x&quot;)+
+  theme_bw()+
+theme(legend.position = &quot;none&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<p>Now we fit the model after obtain the best hyperparameters.</p>
+<pre class="r"><code>xgboost_fit &lt;- xgboost_wf %&gt;%
+  finalize_workflow(select_best(xgboost_tuned)) %&gt;%
+  fit(train)</code></pre>
+<pre><code>## [20:05:58] WARNING: amalgamation/../src/learner.cc:1095: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective &#39;binary:logistic&#39; was changed from &#39;error&#39; to &#39;logloss&#39;. Explicitly set eval_metric if you&#39;d like to restore the old behavior.</code></pre>
+<p>Here is a confusion matrix for the results</p>
+<pre class="r"><code>xgboost_fit %&gt;%
+  augment(test, type.predict=&quot;prob&quot;) %&gt;%
+  conf_mat(truth = is_churned , estimate = .pred_class) %&gt;%
+    autoplot(type=&quot;heatmap&quot;)+
+  labs(title=&quot;Confusion matrix of whether a customer churned or not&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-26-1.png" width="672" /></p>
+<p>These were the features the that were deemed most important.</p>
+<pre class="r"><code>library(vip)
+xgboost_fit %&gt;%
+pull_workflow_fit() %&gt;%
+  vip(num_features=50)+
+  ggtitle(&quot;Variable Important for Xgboost model&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-27-1.png" width="672" /></p>
+</div>
+<div id="interperting-the-model" class="section level1">
+<h1>Interperting the model</h1>
+<p>Though XGBoost is known as a black-box models, i.e it isn’t obvious how changes in the input vary the output, there are several methods of finding ways to explain or interpret the model. We will explore these methods with the help of the <code>DALExtra</code> and <code>DALEX</code> packages.</p>
+<p>First we create an explainer and then from there we can view the model from an dataset and instance standpoint. The dataset level refers to how changes in a variable can impact the model, while the instance level refers to how a prediction changes</p>
+<pre class="r"><code>library(DALEXtra)
+
+explained_churn &lt;-  explain_tidymodels(
+ model =    xgboost_fit,
+  data =  train %&gt;% select(-is_churned) ,
+  y =  as.numeric(train$is_churned),
+ type = &quot;classification&quot;,
+ #is needed to specify the first column i.e. is churned == yes is our target variable
+ predict_function_target_column = 1,
+ verbose = F
+)</code></pre>
+</div>
+<div id="datasetglobal-level" class="section level1">
+<h1>Dataset/Global level</h1>
+<pre class="r"><code># Helper functions to create PDP/ICE plots
+
+clean_df &lt;-  function(df){ df %&gt;% as.data.frame() %&gt;% janitor::clean_names() }
+
+md_profile &lt;-  function(x,N=100){
+
+  tmp_mp &lt;-   model_profile(explained_churn, variables = x,N=N)
+
+  cp_prof &lt;-  tmp_mp$cp_profiles %&gt;% clean_df()
+  agg_prof &lt;- tmp_mp$agr_profiles %&gt;% clean_df()
+
+  ids &lt;-  cp_prof %&gt;% ungroup() %&gt;% select(clientnum) %&gt;% unique() %&gt;% pull()
+
+  return( list(cp_prof,agg_prof,ids) )
+}
+
+gg_ice &lt;-  function(model_var,centered=F,N=100){
+
+  xx &lt;- ensym(model_var)
+  md_prof &lt;-  md_profile(model_var,N=N)
+  cp_prof &lt;-  md_prof[[1]]
+  agg_prof &lt;- md_prof[[2]]
+  df_ids &lt;- md_prof[[3]]
+
+  p_title &lt;- ggtitle( label = &quot;Individual Conditional Expectation&quot; )
+  p_labs &lt;- labs(y=&quot;Average Predicted Probability&quot;)
+  y_scale &lt;-   scale_y_continuous(limits=c(0,1))
+  zero_intercept &lt;-  NULL
+
+  if(centered) {
+    cp_prof &lt;-  cp_prof %&gt;%
+      group_by(ids) %&gt;%
+      mutate( yhat = yhat - first(x=yhat) )
+
+    agg_prof &lt;- agg_prof %&gt;%
+      mutate( yhat = yhat - first(x=yhat) )
+
+    p_title &lt;- ggtitle( label = &quot;Centered Individual Conditional Expectation&quot;)
+    p_labs &lt;- labs(y=&quot;Probability change from baselines&quot;)
+    y_scale &lt;- NULL
+    zero_intercept &lt;-   geom_hline(yintercept = 0,lty=2,size=1)
+  }
+
+
+  ggplot()+
+    geom_line(data = cp_prof ,
+              aes(x=!!xx,y=yhat,group=ids),col=&quot;grey70&quot;) +
+    geom_line(data = agg_prof  ,
+              aes(x=x,y=yhat ),size=1.5,col=&quot;royalblue&quot;)+
+    geom_rug(data = train %&gt;%  filter(clientnum %in% df_ids) %&gt;% select(!!xx),
+             aes(x=!!xx),alpha=0.2)+
+    zero_intercept+
+    y_scale +
+    p_title +
+    labs(subtitle = glue::glue(paste0(&quot;Showing &quot;,N,&quot; profiles&quot;)))+
+    p_labs+
+    theme_minimal()
+
+}</code></pre>
+<p>According the the variable importance plot, the most important variable was <code>total_trans_amt</code>, let’s see how on the dataset level how changes along this variable affect the outcome.</p>
+<pre class="r"><code>gg_ice(&quot;total_trans_amt&quot;,F,N=500)+gg_ice(&quot;total_trans_amt&quot;,T,N=500)+
+  plot_annotation(title=&quot;PDP and ICE plots of Total Transaction Amounts&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-30-1.png" width="864" /></p>
+<p>THE LHS shows the partial dependence curve in blue and the individual conditional expectation curves in grey. The blue line show how changes in the variable of interest affect the outcome on average. The grey lines are a set of observation in the dataset and show how changes in the variable of interest affect their specific outcome.</p>
+<p>Ideally you would want to see parallel lines, this indicates that there are no interactions with other variables. If there were, then you would expect to see clusters of profiles who follow different shapes. In our current example, we see parallel lines.</p>
+<p>But it can be difficult to see how changes in the variable of interest affect the individual profiles, since many profiles have different starting probabilities due to the other variables in the dataset. For this reason we can use something called a Centred Individual Conditional Expectation plot.</p>
+<p>With Centred ICE plots, the estimate probabilities are centred by a value take as a baseline, here in this instance we use the first value available. This means we can compare all the curves with respect to the baseline.</p>
+<p>From the above, the centred ICE plot suggests that very low values ( close to 0) of transaction amounts can lead to higher chances of churn than compared with other values.</p>
+<p>Note that the rugs below each graph refer to the true values found in the dataset for variable of interest. This helps us know where we can be confident about our predictions and where to be careful, since the model doesn’t have much information in that region.</p>
+<p>We will plot a few for the most important variables.</p>
+<pre class="r"><code>gg_ice(&quot;total_trans_ct&quot;,F,N=500)+gg_ice(&quot;total_trans_ct&quot;,T,N=500)+
+  plot_annotation(title=&quot;PDP and ICE plots of Total Transaction Amounts&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-31-1.png" width="672" /></p>
+<p>For total transaction counts, from the ICE plot see that there is a region between 25-50 transactions where there is an elevated chance of a customer churning. This is further evidence by the centred ICE plot on the right, where there is an increased probability of churning.</p>
+<p>We also see that for some profiles, total transactions between 25-50 can actually decrease the chances of churn. This because there are other variable also at play.</p>
+<pre class="r"><code>gg_ice(&quot;total_revolving_bal&quot;,F,N=500)+gg_ice(&quot;total_revolving_bal&quot;,T,N=500)+
+  plot_annotation(title=&quot;PDP and ICE plots of Total Reolving Balance&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-32-1.png" width="672" /></p>
+<p>Where we see that total revolving balances between 0 and 500 have higher probabilities of churn on average.</p>
+<pre class="r"><code>gg_ice(&quot;total_trans_avg&quot;,F,N=500)+gg_ice(&quot;total_trans_avg&quot;,T,N=500)+
+  plot_annotation(title=&quot;PDP and ICE plots of Total Transaction Average&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-33-1.png" width="672" /></p>
+<p>For total transaction average, we see that higher average values can lead to increased probabilities of churning.</p>
+<div id="accumulated-local-profiles" class="section level2">
+<h2>Accumulated Local Profiles</h2>
+<p>We can look at something called Accumulated Local Effects, where it can deal with situations where there are correlated variables in the data set. Partial dependance plots can include areas of a feature space that are very unlikely to happen, and so they may be correlations between the variables. Accumulated Local Effects are unbiased</p>
+<p>Furthermore, we can centre the values to get a new interpretation. They measure the change from the average prediction.</p>
+<pre class="r"><code>gg_acum &lt;-  function(model_var,N=1000){
+
+  xx &lt;- ensym(model_var)
+  md_prof &lt;-  model_profile(explained_churn,
+                            variable = model_var,
+                            type=&quot;accumulated&quot;,
+                            N=N)
+
+  agg_prof &lt;- clean_df(md_prof[[2]]) %&gt;% 
+        mutate(n=n(),
+       total_ale = sum(yhat),
+       centred_ale = yhat-total_ale/n)
+
+  p_title &lt;- ggtitle( label = glue::glue(model_var)  )
+  p_labs &lt;- labs(x=&quot;&quot;,y=&quot;ALE&quot;)
+
+  ggplot()+
+    geom_line(data = agg_prof , aes(x=x,y=centred_ale ),size=1.5,col=&quot;royalblue&quot;)+
+    geom_rug(data = train,aes(x=!!xx),alpha=0.2)+
+    geom_hline(yintercept = 0,lty=2)+
+    p_title +
+    p_labs+
+    theme_minimal()
+
+}
+
+gg_acum(&quot;total_trans_amt&quot;)+
+gg_acum(&quot;total_trans_ct&quot;)+
+gg_acum(&quot;total_revolving_bal&quot;)+
+gg_acum(&quot;total_trans_avg&quot;)+
+  plot_annotation(title=&quot;Centered Accumulated Local Effect Plots&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-34-1.png" width="672" /></p>
+<p>From the Accumulated Dependence profiles, we can conclude the following</p>
+<ul>
+<li>For total transaction amounts, low transactions give higher churn risk</li>
+<li>The same cane be said for total transaction counts</li>
+<li>For total revolving balance between 0 and 500, there is an increased risk of customer churn</li>
+<li>For total transaction average, higher values lead to higher churn risk</li>
+</ul>
+<p>Let’s view accumulated local effect profiles for a view other variables.</p>
+<pre class="r"><code>gg_acum(&quot;total_amt_chng_q4_q1&quot;)+
+gg_acum(&quot;total_ct_chng_q4_q1&quot;)+
+gg_acum(&quot;avg_utilization_ratio&quot;)+
+gg_acum(&quot;customer_age&quot;)+
+  plot_annotation(title=&quot;Centered Accumulated Local Effect Plots&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-35-1.png" width="672" /></p>
+<ul>
+<li>Total amount change values around 1 or less than 0.4 are predicted higher churn risk</li>
+<li>Total count change below 0.6 is associated with higher churn risk</li>
+<li>Utilization in the regions of below 0.01, between 0.125 and 0.19, and over 0.8 are deemed to have higher probabilities of churn, but note that the changes in the y axis are very small.</li>
+<li>Customers over 40 have a higher churn risk.</li>
+</ul>
+</div>
+</div>
+<div id="instance-level" class="section level1">
+<h1>Instance level</h1>
+<p>For a specific observation, we can view the ICE plot for a variable of interest.</p>
+<pre class="r"><code>set.seed(133)
+new_obs &lt;- xgboost_fit %&gt;% 
+  augment(test, type.predict=&quot;prob&quot;) %&gt;% 
+  slice_sample(n=1)
+
+new_obs_pp &lt;-  predict_profile(explainer = explained_churn, 
+                           new_observation = new_obs)
+
+new_obs_pp %&gt;% clean_df() %&gt;% 
+  filter( vname == &quot;total_trans_ct&quot;) %&gt;% 
+  ggplot(aes(x=total_trans_ct,y=yhat))+
+  geom_line()+
+  geom_point(data = new_obs , aes(x=total_trans_ct,y=.pred_yes ),size=4,col=&quot;red3&quot;)+
+  ylim(0,1)+
+  labs(title=&quot;Individual Conditional Expectation Plot&quot;,
+       y=&quot;Predicted Probability&quot;)+
+  theme_minimal()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-36-1.png" width="672" /></p>
+<p>What this plot shows that for this specific customer, if the total transaction cost is lower and all over variable were fixed, then there would be an increased chance that the customer would churn, with a peak being reached between 25 and 50 transactions.</p>
+<p>If we want to see how stable this curve is, we can plot the ICE curves for the nearest neighbours to our new observation.</p>
+<pre class="r"><code>pd_new_obs &lt;- predict_diagnostics(explainer = explained_churn,
+                           new_observation = new_obs,
+                                neighbours = 10,
+                                 variables = &quot;total_trans_ct&quot;)
+
+new_instance_ice &lt;-  pd_new_obs$cp_new_instance %&gt;% clean_df()
+
+cp_nearest_prof &lt;-  pd_new_obs$cp_neighbors %&gt;% clean_df()
+
+neightbors_id &lt;-  cp_nearest_prof %&gt;% 
+  select(clientnum) %&gt;% unique() %&gt;% pull()
+
+
+ggplot()+
+  geom_line(data=cp_nearest_prof,aes( total_trans_ct, yhat, group=ids),col=&quot;grey80&quot;, size=1 )+
+    geom_line(data= new_instance_ice,aes( total_trans_ct, yhat),col=&quot;royalblue&quot;,size=2)+
+  geom_point(data = new_obs , aes( total_trans_ct, y=.pred_yes ),size=4,col=&quot;red3&quot;)+  
+  labs(title=&quot;Individual Conditional Expectation Plot&quot;,
+       subtitle=&quot;Showing ICE curves for nearest 10 neighbours to the data point&quot;,
+       y=&quot;Predicted Probability&quot;)+
+  theme_minimal()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-37-1.png" width="672" /></p>
+<p>We can also look at the SHAP values to see what are the most important variables from the perspective of our new observations.</p>
+<pre class="r"><code>shap_new_obs &lt;-  predict_parts(explainer = explained_churn, 
+                      new_observation = new_obs, 
+                                 type = &quot;shap&quot;,
+                                    B = 10)
+
+plot(shap_new_obs)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-38-1.png" width="672" /></p>
+<p>From here we see that the most important variables are total transactions count, total transaction amount, total revolving balance, total trans average.</p>
+<p>There are many other ways of interpreting models like this, and we will explore them in future blogposts. Since this blogpost is already quiet long, I will end here.</p>
+</div>
