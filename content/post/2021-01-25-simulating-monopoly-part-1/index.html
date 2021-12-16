@@ -9,25 +9,23 @@ description: ''
 topics: []
 ---
 
-<script src="index_files/header-attrs/header-attrs.js"></script>
-<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
-<script src="index_files/anchor-sections/anchor-sections.js"></script>
-<script src="index_files/kePrint/kePrint.js"></script>
-<link href="index_files/lightable/lightable.css" rel="stylesheet" />
-<link href="index_files/bsTable/bootstrapTable.min.css" rel="stylesheet" />
-<script src="index_files/bsTable/bootstrapTable.js"></script>
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+<script src="{{< blogdown/postref >}}index_files/kePrint/kePrint.js"></script>
+<link href="{{< blogdown/postref >}}index_files/lightable/lightable.css" rel="stylesheet" />
+<link href="{{< blogdown/postref >}}index_files/bsTable/bootstrapTable.min.css" rel="stylesheet" />
+<script src="{{< blogdown/postref >}}index_files/bsTable/bootstrapTable.js"></script>
 
 
-<p>Over the next two blog posts, I will be looking at everyone’s favourite* boardgame <strong>Monopoly!</strong></p>
+<p>Over the next two blog posts, I will be looking at everyone’s favourite board game <strong>Monopoly!</strong></p>
 <ul>
-<li><p>The first part will be about creating and building a simulation of the game</p></li>
-<li><p>The second will be looking at the properties themselves and ask questions like: What the best properties to buy are? Which property gives the best ROI? which sets should you own? what combination of houses and hotels are best? Does the number of players have an affect? and many more.</p></li>
+<li><p>The first part will be about creating and building a simulation of the game.</p></li>
+<li><p>The second will be looking at the properties themselves and ask questions like: what the best properties to buy are? Which property gives the best ROI? Which sets should you own? What combination of houses and hotels are best? Does the number of players have an affect? And many more.</p></li>
 </ul>
 <p>The game is a classic pastime for many people - long drawn-out games, getting upset at losing money, and getting into fights with friends and family. Despite not many people liking it, it’s one of the most played and famous board games out there.</p>
-<p>If you are unfamiliar the game, you can click this <a href="https://en.wikipedia.org/wiki/Monopoly_(game)#Rules">link</a> to the get the Wikipedia entry of the game and it’s rules. From now on, I will assume that you are familiar with the rules.</p>
+<p>If you are unfamiliar the game, you can click this <a href="https://en.wikipedia.org/wiki/Monopoly_(game)#Rules">link</a> to get the Wikipedia entry of the game and its’ rules. From now on, I will assume that you are familiar with the rules.</p>
 <div id="set-up" class="section level1">
 <h1>Set-up</h1>
-<p>Here I load tidyverse for graphs and data manipulation, and a few ggplot helper functions</p>
+<p>Here I load tidyverse for graphs and data manipulation, and a few ggplot helper functions.</p>
 <pre class="r"><code>library(tidyverse)
 library(patchwork)
 library(gganimate)
@@ -96,7 +94,7 @@ gg_monopoly_short &lt;- function(n_games,n_rolls) {
     ) 
   return(p)
 }</code></pre>
-<p>Here is playing board:</p>
+<p>Here is the playing board:</p>
 <pre class="r"><code>board_space</code></pre>
 <pre><code>##                       Go            Old Kent Road        Community Chest 1 
 ##                        0                        1                        2 
@@ -129,7 +127,7 @@ gg_monopoly_short &lt;- function(n_games,n_rolls) {
 </div>
 <div id="dice-function" class="section level1">
 <h1>Dice Function</h1>
-<p>First thing to do in a game of monopoly is to roll the dice and move according to the sum of the top faces.</p>
+<p>First thing to do in a game of monopoly is to roll the dice and move accordingly to the sum of the top faces.</p>
 <pre class="r"><code>dice_rolls &lt;-  function(){
   return(sample(1:6,2,replace = TRUE))
 }
@@ -141,7 +139,7 @@ print(paste0(&quot;Rolled a &quot;,roll[1],&quot; and &quot;,roll[2],&quot;. The
 </div>
 <div id="simulating-going-around-the-board" class="section level1">
 <h1>Simulating going around the board</h1>
-<p>Now we create a simple simulation of going around a board</p>
+<p>Now we create a simple simulation of going around a board.</p>
 <pre class="r"><code>simulate_monopoly &lt;- function(n_games=1000,n_rolls=1000){
   
   all_counts &lt;- rep(0,40)
@@ -169,7 +167,7 @@ print(paste0(&quot;Rolled a &quot;,roll[1],&quot; and &quot;,roll[2],&quot;. The
 <pre class="r"><code>set.seed(414) 
 
 ( gg_monopoly_short(1,1) + gg_monopoly_short(1,10)  ) / (  gg_monopoly_short(1,50) + gg_monopoly_short(1,100)    )</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="960" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="960" /></p>
 <p>Simulating more rolls allows more squares to be landed on.</p>
 <p>We see the chance of landing on a particular square converges to a value as we use larger and larger dice rolls.</p>
 <pre class="r"><code>set.seed(414)
@@ -212,13 +210,13 @@ anim &lt;- p+transition_states(name)+ease_aes(&#39;sine-in-out&#39;)+
   ggtitle(&quot;Simulation of {closest_state} dice rolls over 1 game&quot;)
 
 animate(anim,fps=30)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-8-1.gif" /><!-- --></p>
-<p>After 100,000 dice rolls we reach a the chance of landing on a square as 2.5%.</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.gif" /><!-- --></p>
+<p>After 100,000 dice rolls we see the chance of landing on a square as 2.5%.</p>
 <p>Now, if we were to increase the number of games played, we can get a view of the many different paths a player can take.</p>
 <pre class="r"><code>set.seed(414) 
 
 ( gg_monopoly_short(1,5) + gg_monopoly_short(10,5)  ) / (  gg_monopoly_short(50,5) + gg_monopoly_short(100,5)    )</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" width="960" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="960" /></p>
 </div>
 <div id="simulating-number-of-games" class="section level2">
 <h2>Simulating number of games</h2>
@@ -255,7 +253,7 @@ anim &lt;- p+transition_states(name)+ ease_aes(&#39;sine-in-out&#39;)+
           subtitle = &quot;Most likely place to land: { df %&gt;%  filter(name==closest_state) %&gt;% slice_max(order_by = value) %&gt;% select(Name) %&gt;% pull() }&quot;)
 
 animate(anim,fps=30,nframes = 300)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-10-1.gif" /><!-- --></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-10-1.gif" /><!-- --></p>
 <p>After one dice roll, the probabilities of landing on a square are normally distributed with the mean being seven places away from go - the chance square. This is because rolling a seven is the most likeliest outcome.</p>
 <p>After more dice rolls the probabilities start to spread themselves out across the board. This shows the many paths a player can take after just several rolls.</p>
 </div>
@@ -267,13 +265,13 @@ animate(anim,fps=30,nframes = 300)</code></pre>
 gg_monopoly(1e3,1e3,add_base = TRUE)+
     scale_x_continuous(expand = c(0,NA),labels = scales::percent_format(accuracy = 0.1 ),breaks = (1/100)*seq(0,100,0.5) )+
   labs(title=&quot;Long term behaviour of going around the board&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
-<p>Note the dashed line at <code>2.5%</code>, this is the chance of randomly landing on a space on the board, which is <span class="math inline">\(\frac{1}{40}\)</span>.</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>Note the dashed line at <code>2.5%</code>: this is the chance of randomly landing on a space on the board, which is <span class="math inline">\(\frac{1}{40}\)</span>.</p>
 </div>
 </div>
 <div id="going-to-jail-space" class="section level1">
 <h1>Going to Jail space</h1>
-<p>Next we add the condition of going to jail if one lands on the “Go to jail” space.</p>
+<p>Next, we add the condition of going to jail if one lands on the “Go to jail” space.</p>
 <pre class="r"><code>simulate_monopoly &lt;- function(n_games=1000,n_rolls=1000){
   
   all_counts &lt;- rep(0,40)
@@ -299,8 +297,8 @@ gg_monopoly(1e3,1e3,add_base = TRUE)+
 <pre class="r"><code>set.seed(414)
 gg_monopoly(1e3,1e3,add_base = TRUE)+
   labs(title=&quot;Adding go to jail&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
-<p>On viewing the graph, there is a noticeable increase in the chance of ending a turn in jail. The spaces ahead of jail also see a slight increase, while all the other places see a dip</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>On viewing the graph, there is a noticeable increase in the chance of ending a turn in jail. The spaces ahead of jail also see a slight increase, while all the other places see a dip.</p>
 </div>
 <div id="adding-doubles-rule" class="section level1">
 <h1>Adding doubles rule</h1>
@@ -340,16 +338,16 @@ gg_monopoly(1e3,1e3,add_base = TRUE)+
 <pre class="r"><code>set.seed(414)
 gg_monopoly(1e3,1e3,add_base = TRUE)+
   labs(title=&quot;Adding doubles rule&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
 <p>By adding the doubles rule, the chances of going to jail per dice roll increase from under 5% to around 5.5%.</p>
 </div>
 <div id="adding-chance-and-community-chest-cards" class="section level1">
 <h1>Adding chance and community chest cards</h1>
-<p>Now we add the affects of drawing cards from the chance or community chest places</p>
+<p>Now we add the affects of drawing cards from the chance or community chest places.</p>
 <div id="chance-cards" class="section level2">
 <h2>Chance cards</h2>
 <p>Here I will use the assumption from this <a href="https://monopoly.fandom.com/wiki/Chance">site</a> about the chance cards distribution.</p>
-<p>Namely, of the 16 chance cards, there are 10 that move a player, and two of those are going to the nearest station</p>
+<p>Namely, of the 16 chance cards, there are 10 that move a player, and two of those are going to the nearest station.</p>
 <pre class="r"><code># Function for drawing chance cards
 
 draw_chance_card &lt;- function(pos){
@@ -479,15 +477,15 @@ anim &lt;- p+transition_states(name)+ #ease_aes(&#39;sine-in-out&#39;)+
           subtitle = &quot;Most likely square to end on: {cities &lt;-  df %&gt;%  filter(name==closest_state) %&gt;% slice_max(order_by = value,n=1) %&gt;% select(Name) %&gt;% pull() }&quot;)
 
 animate(anim,fps=30,nframes = 300)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-19-1.gif" /><!-- --></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-19-1.gif" /><!-- --></p>
 <p>Notice that after only a few rolls, landing in jail becomes the likeliest place to end up on after a given dice roll.</p>
-<p>The interpretation for the probabilities is now slightly more nuanced. Instead of referring the chance of landing per dice rolls, it now refers to <strong><em>the chance of ending up on a square after each dice roll per dice roll</em></strong>.</p>
+<p>The interpretation for the probabilities is now slightly more nuanced. Instead of referring to the chance of landing per dice rolls, it now refers to <strong><em>the chance of ending up on a square after each dice roll per dice roll</em></strong>.</p>
 <p>The difference is due to the changes induced by card actions or going to jail by gaining doubles. The simulation only records the final position after a dice roll.</p>
 <pre class="r"><code>set.seed(414)
 gg_monopoly(1e3,1e3,add_base = TRUE)+
   labs(title=&quot;Adding chance cards and community chest actions&quot;,
        x=&quot;Chance of ending on square per dice roll (%)&quot;,y=&quot;&quot;)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
 <p>Going to jail now has about a 6% chance of happening per turn. The addition of chance cards has also altered the distribution of landing on any space, for example Trafalgar Square has the highest chance of being landed for any property.</p>
 <p>The stations also a receive a large boost.</p>
 <pre class="r"><code>n_games &lt;-  1e3
@@ -510,20 +508,20 @@ monopoly_props %&gt;%
         panel.grid.minor.x  = element_line(size = .5),
         axis.line.x = element_line(),
         axis.ticks =element_blank())</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
 <p>The most likeliest purchasable properties are Trafalgar Square, followed by Vine Street, and several stations.</p>
 <p>The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.</p>
 </div>
 </div>
 <div id="jail-strategy" class="section level1">
 <h1>Jail strategy</h1>
-<p>It is apparent that there are two strategies to consider when in jail.</p>
+<p>It is apparent that there are two strategies to consider when in jail:</p>
 <ul>
 <li><p>The first is leaving jail as soon as possible</p></li>
 <li><p>The second is staying in jail as long as possible</p></li>
 </ul>
-<p>They come about because initially, when the board is empty and there are many properties up for grabs, a player would want to land on those squares are purchase that property, and they would not be able to do that when in jail</p>
-<p>But when there are many properties owned by other places and some of those properties has houses or hotels placed on them, it can be very damaging to a players cash pile and cause a ruin. Thus staying in jail to collect rent from your opponents while also buying time to avoid landing on potential game-ending squares.</p>
+<p>They come about because initially, when the board is empty and there are many properties up for grabs, a player would want to land on those squares to purchase that property, and they would not be able to do that when in jail.</p>
+<p>But when there are many properties owned by other players and some of those properties have houses or hotels placed on them, it can be very damaging to a player’s cash pile and cause a ruin. Thus, staying in jail allows a player to collect rent from their opponents while also buying time to avoid landing on potential game-ending squares.</p>
 <p>We will adjust the simulator to take into account both strategies.</p>
 <pre class="r"><code>simulate_monopoly &lt;- function(n_games = 1000, n_rolls = 1000,jail_stay = TRUE){
   all_counts = rep(0,40)
@@ -600,7 +598,7 @@ monopoly_props %&gt;%
   all_counts &lt;-  all_counts/(n_rolls*n_games)
   return(all_counts)
 }</code></pre>
-<p>The simulation now takes into the two strategies - leaving jail asap, or staying as long as possible.</p>
+<p>The simulation now takes into account the two strategies - leaving jail ASAP, or staying as long as possible.</p>
 <p>We can see how the strategies result in different probabilities for ending on a particular square in the long term.</p>
 <pre class="r"><code>n_games &lt;-  1e2 ; n_rolls &lt;-  1e3
 set.seed(414)
@@ -629,15 +627,15 @@ anim &lt;-  p + transition_states(name) + ease_aes(&#39;sine-in-out&#39;) +
   ggtitle(&#39;Strategy: {closest_state}&#39;)
 
 animate(anim,fps=30)</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-24-1.gif" /><!-- --></p>
-<p>Up to now all the simulations took the jail strategy as leaving instantly, but when we compare the long term probabilities, we see that the chance of ending up in jail is even more dominant than the previous strategy of leaving.</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-24-1.gif" /><!-- --></p>
+<p>Up to now, all the simulations took the jail strategy as leaving instantly, but when we compare the long term probabilities, we see that the chance of ending up in jail is even more dominant than the previous strategy of leaving.</p>
 <p>This large increase for ending up in jail suppresses the probabilities for ending a dice roll on other squares.</p>
 </div>
 <div id="a-more-realistic-scenario" class="section level1">
 <h1>A more realistic scenario</h1>
 <p>The problem with these simulations is that it assumes that games of monopoly will take a sufficiently long enough time to reach the steady states discussed previously.</p>
-<p>The average number of dice rolls per player in a game of monopoly is about 30 dice rolls<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>. So using this fact, I will simulate a game with 30 dice rolls. Though there have been estimates ranging from 30-45 rolls.</p>
-<p>Since supposedly most games end after 30 dice rolls, then using this number in our simulation should give us accurate results that correspond to what happens in a real game. However, in the event that a game goes on for longer than 30 dice rolls per player, I will also long at the long term limit of dice rolls and also study those scenarios.</p>
+<p>The average number of dice rolls per player in a game of monopoly is about 30 dice rolls<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>. So using this fact, I will simulate a game with 30 dice rolls, though there have been estimates ranging from 30-45 rolls.</p>
+<p>Since supposedly most games end after 30 dice rolls, using this number in our simulation should give us accurate results that correspond to what happens in a real game. However, in the event that a game goes on for longer than 30 dice rolls per player, I will also look at the long term limit of dice rolls and also study those scenarios.</p>
 <p>So overall I will look at four possible situations; the chance of landing on a square after:</p>
 <ul>
 <li><p>many dice rolls, leaving jail</p></li>
@@ -655,7 +653,7 @@ leave_30 &lt;-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = FALSE)
 set.seed(414)
 stay_30 &lt;-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = TRUE)</code></pre>
 <p>We can view the relative percentage difference between the two dice roll situations. This asks the question, what squares are more likely to be landed on than others for the different scenarios?</p>
-<p>First up we look at the difference of leaving jail after 30 dice rolls to leaving jail after many rolls.</p>
+<p>First up, we look at the difference of leaving jail after 30 dice rolls to leaving jail after many rolls.</p>
 <pre class="r"><code>monopoly_props %&gt;% 
   mutate ( pct =  (leave_30 -leave_long)/leave_long ) %&gt;% 
   ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
@@ -670,8 +668,8 @@ stay_30 &lt;-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = TRUE)</co
         panel.grid.minor.x  = element_line(size = .5),
         axis.line.x = element_line(),
         axis.ticks =element_blank())</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-26-1.png" width="672" /></p>
-<p>The above graph shows that when using simulating for 30 dice rolls instead of many, there is an big increase in squares that are in the first 5-20 squares than in all the other squares. In particular, the light blue and pinks see a very large percentage increase in the chances of landing on that square.</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-26-1.png" width="672" /></p>
+<p>The above graph shows that when simulating for 30 dice rolls instead of many, there is a big increase in squares that are in the first 5-20 squares than in all the other squares. In particular, the light blue and pinks see a very large percentage increase in the chances of landing on that square.</p>
 <p>Likewise we can see the difference for the stay in jail strategy.</p>
 <pre class="r"><code>monopoly_props %&gt;% 
   mutate ( pct =  (stay_30 -stay_long)/stay_long ) %&gt;% 
@@ -687,12 +685,12 @@ stay_30 &lt;-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = TRUE)</co
         panel.grid.minor.x  = element_line(size = .5),
         axis.line.x = element_line(),
         axis.ticks =element_blank())</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-27-1.png" width="672" /></p>
-<p>We see a similar situation to the leaving jail scenario, however, the big difference is that the simulation results suggest that there is a 4% decrease in the change of staying in after 30 dice rolls than going to jail after many dice rolls.</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-27-1.png" width="672" /></p>
+<p>We see a similar situation to the leaving jail scenario. However, the big difference is that the simulation results suggest that there is a 4% decrease in the chance of staying in jail after 30 dice rolls than going to jail after many dice rolls.</p>
 </div>
 <div id="graph-of-results" class="section level1">
 <h1>Graph of results</h1>
-<p>Here are the graphs for the various results. First for many dice rolls</p>
+<p>Here are the graphs for the various results. Firstly, for many dice rolls:</p>
 <pre class="r"><code>p1 &lt;-  monopoly_props %&gt;% 
   mutate ( pct =  leave_long ) %&gt;% 
   ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
@@ -724,8 +722,8 @@ p2 &lt;- monopoly_props %&gt;%
         axis.ticks =element_blank())
 
 p1 + p2 + patchwork::plot_annotation(title = &quot;Chance of ending on a square for many dice rolls&quot;,subtitle =&quot;Simulation of 1,000 dice rolls over 10,000 games&quot; )</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-28-1.png" width="960" /></p>
-<p>The second is the scenario after 30 dice rolls.</p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-28-1.png" width="960" /></p>
+<p>Secondly, the scenario after 30 dice rolls:</p>
 <pre class="r"><code>p1 &lt;-  monopoly_props %&gt;% 
   mutate ( pct =  leave_30 ) %&gt;% 
   ggplot(aes(x=pct,y=reorder(Name,-Space),fill=Color ))+
@@ -757,7 +755,7 @@ p2 &lt;- monopoly_props %&gt;%
         axis.ticks =element_blank())
 
 p1 + p2 + patchwork::plot_annotation(title = &quot;Chance of ending on a square after 30 dice rolls&quot;,subtitle =&quot;Simulation of 30 dice rolls over 100,000 games&quot; )</code></pre>
-<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" width="960" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-29-1.png" width="960" /></p>
 <div id="table-of-simulation-results" class="section level2">
 <h2>Table of simulation results</h2>
 <p>Finally, before we finish we can view a table of results for the probabilities of landing on a particular square.</p>
@@ -1743,13 +1741,13 @@ Mayfair
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
-<p>We have seen how to build a simulator from a basic idea of a player going round a board to then introducing more and more of the game’s mechanics to add further complexity and similarity to a real world game of monopoly. Some of the code for the simulator was inspired by Matt Parker’s Monopoly code<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>, but that was built in Python, while this is in R.</p>
+<p>We have seen how to build a simulator from a basic idea of a player going around a board to then introducing more and more of the game’s mechanics to add further complexity and similarity to a real world game of monopoly. Some of the code for the simulator was inspired by Matt Parker’s Monopoly code<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>, but that was built in Python, while this is in R.</p>
 <p>Overall, we see that ending up in jail is the most likely space to end a dice roll on. The exact probability depends on the strategy and number of dice rolls played.</p>
 <p>The most likeliest purchasable properties to end a dice roll on are: Trafalgar Square, Vine Street, and several stations.</p>
 <p>The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.</p>
 <div id="next-up" class="section level2">
 <h2>Next up</h2>
-<p>In the next blogpost, I will look at the fun part! In particular I will look at the properties and deciding which are the best based on a number of factors like which properties give the best ROI? which can produce the fastest returns? which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?</p>
+<p>In the next blog post, I will look at the fun part! In particular I will look at the properties and decide which are the best based on a number of factors like, which properties give the best ROI? Which can produce the fastest returns? Which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?</p>
 <p>All that coming up!</p>
 </div>
 </div>

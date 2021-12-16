@@ -8,11 +8,11 @@ tags:
 
 This is the second part in a two part series of looking at the game Monopoly. If you haven't read part one, then click [here](https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/) to read the post. I will now assume you are familiar with Monopoly and how the simulation was built.
 
-Previously we built a simulation of Monopoly and found that the most likeliest purchasable properties a player ends a dice roll on are: Trafalgar Square, Vine Street, and Stations. To view the full list of probabilities click [here](https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/#table-of-simulation-results).
+Previously, we built a simulation of Monopoly and found that the most likeliest purchasable properties a player ends a dice roll on are: Trafalgar Square, Vine Street, and Stations. To view the full list of probabilities click [here](https://gurpreetkblog.netlify.app/post/2021-01-25-simulating-monopoly-part-1/#table-of-simulation-results).
 
 The least likeliest are Old Kent Road, Whitechapel Road, and Park Lane.
 
-In this post we will discuss the properties that are the best or worst depending on the metrics and scenarios we want to look at.
+In this post, we will discuss the properties that are the best and worst depending on the metrics and scenarios we want to look at.
 
 First I will quickly load in the required data.
 
@@ -40,7 +40,7 @@ color_codes <-  c("None"="grey40",
 options(kableExtra.html.bsTable = TRUE)
 ```
 
-We recall that in the first blogpost we had 4 difference scenarios:
+We recall that in the first blog post we had 4 different scenarios:
 
 -   The long term state of the board after many dice rolls, with a strategy of leaving jail as soon as possible
 
@@ -87,11 +87,11 @@ monopoly_props %>%
   
 ```
 
-From this we see that Orange is the best coloured set to own based on the chances of ending a dice roll, with a 2.94% chance. This is followed closely by Red (2.92%) and Stations (2.84%). The worst three for chances are Brown (2.15%), Light Blue (2.30%), and Dark Blue (2.40%).
+From this, we see that Orange is the best coloured set to own based on the chances of ending a dice roll, with a 2.94% chance. This is followed closely by Red (2.92%) and Stations (2.84%). The worst three for chances are Brown (2.15%), Light Blue (2.30%), and Dark Blue (2.40%).
 
 It should not be surprising as the best squares are those ahead of the jail square on board position 10, but they are also behind the go-to-jail square in position 30. The least common squares are furthest from the board changing actions.
 
-Below is the same graph as before, but with different situation discussed earlier.
+Below is the same graph as before but with the different situations discussed earlier.
 
 ```{r, echo=FALSE}
 
@@ -152,13 +152,13 @@ p1 <- monopoly_props %>%
  p3 + p2 + p1 + patchwork::plot_layout(ncol = 2 , nrow = 2)
 ```
 
-We see that largely speaking the results are same.
+We see that largely speaking the results are the same.
 
 # What are the best properties in terms of expected income?
 
 Once a property is bought by a player, they can charge rent on others who land on that property. Depending on if the player solely owns a property, owns properties of the same set, owns houses or hotels, that amount charged will differ.
 
-As we have the probabilities of a player landing on a property, we can work out the expect income by using the formula.
+As we have the probabilities of a player landing on a property, we can work out the expected income by using the formula:
 
 $$
 \text{Expected income per dice roll} = \text{P(landing on square per dice roll)} \times \text{income}
@@ -200,7 +200,7 @@ monopoly_props %>%
 
 ```
 
-Generally speaking, we see that properties with higher rent tend to have higher expected income and almost looks like it follows the pattern of the board itself. However there are a few differences. Vine Street (£0.49) has the same expected income than Fleet Street (£0.49), despite being in the "inferior" set. Moreover, Trafalgar Square (£0.64) is superior to all of Yellow's expected income.
+Generally speaking, we see that properties with higher rent tend to have higher expected income and almost looks like it follows the pattern of the board itself. However, there are a few differences. Vine Street (£0.49) has the same expected income as Fleet Street (£0.49), despite being in the "inferior" set. Moreover, Trafalgar Square (£0.64) is superior to all of Yellow's expected income.
 
 The stations also seem to provide a good chance at obtaining a steady income, though Liverpool Street Station (£0.61) seems to provide poor value when compared with other stations.
 
@@ -228,9 +228,9 @@ monopoly_props %>%
   
 ```
 
-On average, we see that the Station set (£2.84) has the best highest expected income across it's properties, followed by Dark Blue (£2.08). The worst two are Brown (£0.13) and Utilities (£0.38) .
+On average, we see that the Station set (£2.84) has the best expected income across its' properties, followed by Dark Blue (£2.08). The worst two are Brown (£0.13) and Utilities (£0.38) .
 
-We only considered the expected income when a player only owns a single property. We can extend the expected income to include the various upgrades such as having a full set, houses and hotels.
+We only considered the expected income when a player only owns a single property. We can extend the expected income to include the various upgrades such as, having a full set, houses and hotels.
 
 ```{r, echo=FALSE,fig.height=8,fig.align='center'}
 gg_expected_income <-  function(data){
@@ -308,9 +308,9 @@ return( p1 / (p2+p3) + plot_layout(heights = c(3, 1)) )
 gg_expected_income(leave_long) + plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: Many rolls, leave jail")
 ```
 
-The graph suggests that with more upgrades a property obtains, the higher the additional expected rent. Mayfair usually has the highest expected income for each type of property extension. Curiously, Trafalgar square seems to best punching above it's weight in terms of expected income.
+The graph suggests that the more upgrades a property obtains, the higher the additional expected rent. Mayfair usually has the highest expected income for each type of property extension. Curiously, Trafalgar Square seems to be punching above its weight in terms of expected income.
 
-We can also group the expected income by set
+We can also group the expected income by set.
 
 ```{r, echo=FALSE,fig.align='center',fig.height=4}
 
@@ -405,7 +405,7 @@ The biggest jump in income comes from jumping from two houses to three houses.
 
 ## For other scenarios
 
-We can also produce a similar visualizations for the other scenarios
+We can also produce similar visualisations for the other scenarios.
 
 I won't be interpreting the results. But it remains the same; the larger the expected income, the better the property.
 
@@ -416,7 +416,7 @@ gg_expected_income(stay_long) +
    plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: Many rolls, stay jail")
 ```
 
-And by income set,
+And by income set:
 
 ```{r, echo=FALSE,fig.align='center',fig.height=4}
 gg_expected_income_set(stay_long)+
@@ -430,7 +430,7 @@ gg_expected_income(leave_30) +
    plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: 30 dice rolls, leave jail")
 ```
 
-And by income set,
+And by income set:
 
 ```{r, echo=FALSE,fig.align='center',fig.height=4}
 gg_expected_income_set(leave_30)+
@@ -444,7 +444,7 @@ gg_expected_income(stay_30) +
    plot_annotation(title="Expected Income by property and property type",subtitle = "Strategy: 30 dice rolls, stay jail")
 ```
 
-And by income set,
+And by income set:
 
 ```{r, echo=FALSE,fig.align='center',fig.height=4}
 gg_expected_income_set(stay_30)+
@@ -453,15 +453,15 @@ gg_expected_income_set(stay_30)+
 
 # Return on investment on properties
 
-While getting the property or set with the highest potential income may seem like a good idea, it does not take into account the costs required to obtain a property or reach a certain property level. A good indicator on whether something is of good value is by using the return on investment (ROI) metric. It basically measures how much money one can receive per amount spent.
+While getting the property or set with the highest potential income may seem like a good idea, it does not take into account the costs required to obtain a property or reach a certain property level. A good indicator of whether something is of good value is by using the return on investment (ROI) metric. It basically measures how much money one can receive per amount spent.
 
-The ROI is defined as.
+The ROI is defined as:
 
 $$
 \text{ROI} \text{ %} =\frac{\text{Expected income}}{\text{Cost}} \text{ %} 
 $$
 
-We can also look to see how quickly we can make back our investments, by considering the number of opponent dice rolls it takes to recoup our investments. We define the "time" it takes become profitable as:
+We can also look to see how quickly we can make back our investments, by considering the number of opponent dice rolls it takes to recoup our investments. We define the "time" it takes to become profitable as:
 
 $$
 \text{Number of opposition rolls to be profitable}  = \left \lceil{\frac{\text{Cost}}{\text{Expected income}}}\right \rceil = \left \lceil \frac{1}{\text{ROI %}}*100  \right \rceil
@@ -469,7 +469,7 @@ $$
 
 We take the ceiling as if the number of opposition rolls is some decimal, say 5.8 dice rolls, then it is not yet profitable on the 5th dice roll, but it will be on the 6th. So we will round up the number of opposition rolls.
 
-Let's look at which one give the best bang for buck.
+Let's look at which one gives the best bang for buck.
 
 ```{r, echo=FALSE,fig.align='center',fig.height=8,fig.width=8}
 props_groups <-  function(data){
@@ -594,7 +594,7 @@ The Orange properties tend to have the highest ROI.
 
 The worst are the properties not part of a set. The utilities by themselves are useless.
 
-While ROI is a decent metric to tell if we something is a good deal or not, it does not tell us how long it will take to get good returns. By considering the number of opposition rolls it takes to turn a profit, we can obtain a good estimate for when we will break even.
+While ROI is a decent metric to tell if something is a good deal or not, it does not tell us how long it will take to get good returns. By considering the number of opposition rolls it takes to turn a profit, we can obtain a good estimate for when we will break even.
 
 ```{r, echo=FALSE, fig.height=8, fig.width=8 }
 
@@ -646,9 +646,9 @@ gg_rolls(leave_long)+
                   subtitle =  "Strategy: many dice rolls, leave jail " )
 ```
 
-The above graphs shows the number of rolls needed to break even. The worst is Old Kent Road in no set which needs about 1,410 dice rolls before it generates a profit.
+The above graphs show the number of rolls needed to break even. The worst is Old Kent Road in no set which needs about 1,410 dice rolls before it generates a profit.
 
-The table below shows properties and types that are the quickest at generating profit.
+The table below shows the top 10 properties and types that are the quickest at generating profit.
 
 ```{r, echo=FALSE}
 props_groups(leave_long)[[1]] %>% 
@@ -660,9 +660,9 @@ props_groups(leave_long)[[1]] %>%
 kableExtra::kable_styling(bootstrap_options = c("striped","condensed"),full_width = F) 
 ```
 
-The most common group that appears are the Oranges, followed by the Light Blue and Dark Blue groups. It also suggests placing hotels on properties generates profits the fastest.
+The most common group that appears are the Oranges, followed by the Light Blue and Dark Blue groups. It also suggests that placing hotels on properties generates profits the fastest.
 
-Vine street also appears the most in the top 10 list; they are the best property to generate profit.
+Vine Street also appears the most in the top 10 list; they are the best property to generate profit.
 
 # Property sets ROI
 
@@ -880,7 +880,7 @@ color_codes <-  c("None"="grey40",
 
 ```
 
-The above graphs shows how the ROI % changes by property type for different property sets. We see that, past 3 houses, Oranges are the best group and are the best for Hotel. Light Blue is surprisingly second for hotels, perhaps this due to the fact how cheap those properties are and how quickly it is to build houses and hotels.
+The above graphs show how the ROI % changes by property type for different property sets. We see that, past 3 houses, Oranges are the best group and reach their peak with Hotels. Light Blue is surprisingly second for hotels. Perhaps this is due to how cheap those properties are and how quickly it is to build houses and hotels.
 
 Largely speaking, most sets do not improve in value for ROI past 3 houses - these are Red, Dark Blue, Yellow and Green.
 
@@ -904,7 +904,7 @@ gg_sets(leave_long)[[1]] %>%
 
 The above graph shows the number of opposition rolls required to generate profit. We see that as the property set becomes more developed, the number of opposition rolls needed to generate a profit reaches a constant value. For all sets other than Brown, this constant number is about 30-40 rolls.
 
-For Brown, it requires significantly more oppositions rolls before generating a profit. It only becomes competitive with other sets when it has a hotel built.
+For Brown, it requires significantly more opposition rolls before generating a profit. It only becomes competitive with other sets when it has a hotel built.
 
 # Other situations
 
@@ -992,11 +992,9 @@ gg_rolls_set(stay_30)+
 
 # Number of players
 
-From the 2017 edition onwards, the maximum number of players in a game of monopoly is 8[\^1]. This means there are 7 opponents in the game. The minimun is 2, meaning there is 1 opponent.
+From the 2017 edition onwards, the maximum number of players in a game of monopoly is 8. This means there are 7 opponents in the game. The minimum is 2, meaning there is 1 opponent.
 
-[\^1] :
-
-We can calculate the expected income for a turn based on the number of opponents in the game. This different from the number of dice rolls. To calculate the number of expected dice rolls per player turn, we can simply add up the possibilities as follows:
+We can calculate the expected income for a turn based on the number of opponents in the game. This is different from the number of dice rolls. To calculate the number of expected dice rolls per player turn, we can simply add up the possibilities as follows:
 
 $$
 \begin{align}
@@ -1009,15 +1007,15 @@ $$
 \end{align}
 $$
 
-Thus we see that a player can expect roll the dice 1.19 times a turn.
+Thus we see that a player can expect to roll the dice 1.19 times a turn.
 
-We can work out how many total turns it will take for a set to pay itself off. We can calculate this as
+We can work out how many total turns it will take for a set to pay itself off. We can calculate this as:
 
 $$
 \text{Number of turns} = \frac{\text{# Opposition rolls to generate profit}}{\text{Expected # dice rolls per turn} \times \text{# of players}}
 $$
 
-We can see how quickly a set will take to start to generate income based based on the number of turns by looking at the interactive table below.
+We can see how quickly a set will start to generate income based on the number of turns by looking at the interactive table below.
 
 ```{r,out.height=8,out.width=8,echo=FALSE}
 gg_sets(leave_long)[[1]] %>% 
@@ -1036,7 +1034,7 @@ gg_sets(leave_long)[[1]] %>%
 DT::datatable(filter = "top")
 ```
 
-The table shows how many players turns it will take for a set and property type to pay itself off depending on the number of opponents
+The table shows how many player turns it will take for a set and property type to pay itself off, depending on the number of opponents.
 
 The way to use it would be to select a group and property type and then read off the number of turns it would take to pay off the investment.
 
@@ -1067,15 +1065,15 @@ The above graph shows the expected profit after several dice rolls. When part of
 
 # Conclusion
 
-Overall when looking at the the result of many dice rolls, with the strategy of leaving jail we can obtain the following conclusions:
+Overall, when looking at the result of many dice rolls, with the strategy of leaving jail we can obtain the following conclusions:
 
-*(You can draw slightly similar results for the different scenarios by looking at their graphs)*
+*(You can draw slightly similar results for the different scenarios by looking at their graphs.)*
 
 For expected income per dice roll by property:
 
--   The properties with the highest expected income are: Mayfair (£1.31), Park Lane (£0.76), and Bond Street (£0.70).
+-   The properties with the highest expected income are: Mayfair (£1.31), Park Lane (£0.76), and Bond Street (£0.70)
 
--   For hotels, and houses, it's: Mayfair w/ Hotel (£52.53), Mayfair w/ 4 houses (£44.65), Mayfair w/ 3 Houses (£36.77), and Trafalgar Square w/ Hotel (£35.06)
+-   For hotels and houses, it's: Mayfair w/ Hotel (£52.53), Mayfair w/ 4 houses (£44.65), Mayfair w/ 3 Houses (£36.77), and Trafalgar Square w/ Hotel (£35.06)
 
 For expected income per dice roll by property set:
 
@@ -1083,11 +1081,11 @@ For expected income per dice roll by property set:
 
 -   For hotels and houses: Green w/ Hotel (£102.26), Red w/ Hotel (£93.43), Yellow w/ (£92.87)
 
-For the best property for in terms of ROI %:
+For the best property in terms of ROI %:
 
 -   For the base level: Mayfair (0.44%), Trafalgar Square (0.27%), and Vine Street (0.22%)
 
--   For hotels and houses: Vine Street w/ Hotel (4.41%), Vine Street w/ 3 Houses (4.12%), and Marlborough Street w/ Hotel (4.09%).
+-   For hotels and houses: Vine Street w/ Hotel (4.41%), Vine Street w/ 3 Houses (4.12%), and Marlborough Street w/ Hotel (4.09%)
 
 For the best property sets in terms of ROI %:
 
@@ -1101,4 +1099,4 @@ After 3 houses have been developed, the number of opposition rolls required to p
 
 In the long run, after many dice rolls, the Green set generates the highest profit.
 
-The major takeaway is that the best set to aim for in terms of ROI is Orange, in terms of expected income it's Green. If you have a set, you should aim to build 3 houses as it provides the ROI on average.
+The major takeaway is that the best set to aim for in terms of ROI is Orange and in terms of expected income, it's Green. If you have a set, you should aim to build 3 houses as it provides the ROI on average.

@@ -9,19 +9,19 @@ description: ''
 topics: []
 ---
 
-Over the next two blog posts, I will be looking at everyone's favourite\* boardgame **Monopoly!**
+Over the next two blog posts, I will be looking at everyone's favourite board game **Monopoly!**
 
--   The first part will be about creating and building a simulation of the game
+-   The first part will be about creating and building a simulation of the game.
 
--   The second will be looking at the properties themselves and ask questions like: What the best properties to buy are? Which property gives the best ROI? which sets should you own? what combination of houses and hotels are best? Does the number of players have an affect? and many more.
+-   The second will be looking at the properties themselves and ask questions like: what the best properties to buy are? Which property gives the best ROI? Which sets should you own? What combination of houses and hotels are best? Does the number of players have an affect? And many more.
 
 The game is a classic pastime for many people - long drawn-out games, getting upset at losing money, and getting into fights with friends and family. Despite not many people liking it, it's one of the most played and famous board games out there.
 
-If you are unfamiliar the game, you can click this [link](https://en.wikipedia.org/wiki/Monopoly_(game)#Rules) to the get the Wikipedia entry of the game and it's rules. From now on, I will assume that you are familiar with the rules.
+If you are unfamiliar the game, you can click this [link](https://en.wikipedia.org/wiki/Monopoly_(game)#Rules) to get the Wikipedia entry of the game and its' rules. From now on, I will assume that you are familiar with the rules.
 
 # Set-up
 
-Here I load tidyverse for graphs and data manipulation, and a few ggplot helper functions
+Here I load tidyverse for graphs and data manipulation, and a few ggplot helper functions.
 
 ```{r,message=FALSE}
 library(tidyverse)
@@ -100,7 +100,7 @@ gg_monopoly_short <- function(n_games,n_rolls) {
 }
 ```
 
-Here is playing board:
+Here is the playing board:
 
 ```{r}
 board_space
@@ -108,7 +108,7 @@ board_space
 
 # Dice Function
 
-First thing to do in a game of monopoly is to roll the dice and move according to the sum of the top faces.
+First thing to do in a game of monopoly is to roll the dice and move accordingly to the sum of the top faces.
 
 ```{r}
 dice_rolls <-  function(){
@@ -122,7 +122,7 @@ print(paste0("Rolled a ",roll[1]," and ",roll[2],". Their sum is ", roll[1]+roll
 
 # Simulating going around the board
 
-Now we create a simple simulation of going around a board
+Now we create a simple simulation of going around a board.
 
 ```{r}
 simulate_monopoly <- function(n_games=1000,n_rolls=1000){
@@ -205,7 +205,7 @@ anim <- p+transition_states(name)+ease_aes('sine-in-out')+
 animate(anim,fps=30)
 ```
 
-After 100,000 dice rolls we reach a the chance of landing on a square as 2.5%.
+After 100,000 dice rolls we see the chance of landing on a square as 2.5%.
 
 Now, if we were to increase the number of games played, we can get a view of the many different paths a player can take.
 
@@ -273,11 +273,11 @@ gg_monopoly(1e3,1e3,add_base = TRUE)+
   labs(title="Long term behaviour of going around the board")
 ```
 
-Note the dashed line at `2.5%`, this is the chance of randomly landing on a space on the board, which is $\frac{1}{40}$.
+Note the dashed line at `2.5%`: this is the chance of randomly landing on a space on the board, which is $\frac{1}{40}$.
 
 # Going to Jail space
 
-Next we add the condition of going to jail if one lands on the "Go to jail" space.
+Next, we add the condition of going to jail if one lands on the "Go to jail" space.
 
 ```{r}
 simulate_monopoly <- function(n_games=1000,n_rolls=1000){
@@ -310,7 +310,7 @@ gg_monopoly(1e3,1e3,add_base = TRUE)+
   labs(title="Adding go to jail")
 ```
 
-On viewing the graph, there is a noticeable increase in the chance of ending a turn in jail. The spaces ahead of jail also see a slight increase, while all the other places see a dip
+On viewing the graph, there is a noticeable increase in the chance of ending a turn in jail. The spaces ahead of jail also see a slight increase, while all the other places see a dip.
 
 # Adding doubles rule
 
@@ -361,13 +361,13 @@ By adding the doubles rule, the chances of going to jail per dice roll increase 
 
 # Adding chance and community chest cards
 
-Now we add the affects of drawing cards from the chance or community chest places
+Now we add the affects of drawing cards from the chance or community chest places.
 
 ## Chance cards
 
 Here I will use the assumption from this [site](https://monopoly.fandom.com/wiki/Chance) about the chance cards distribution.
 
-Namely, of the 16 chance cards, there are 10 that move a player, and two of those are going to the nearest station
+Namely, of the 16 chance cards, there are 10 that move a player, and two of those are going to the nearest station.
 
 ```{r}
 # Function for drawing chance cards
@@ -515,7 +515,7 @@ animate(anim,fps=30,nframes = 300)
 
 Notice that after only a few rolls, landing in jail becomes the likeliest place to end up on after a given dice roll.
 
-The interpretation for the probabilities is now slightly more nuanced. Instead of referring the chance of landing per dice rolls, it now refers to ***the chance of ending up on a square after each dice roll per dice roll***.
+The interpretation for the probabilities is now slightly more nuanced. Instead of referring to the chance of landing per dice rolls, it now refers to ***the chance of ending up on a square after each dice roll per dice roll***.
 
 The difference is due to the changes induced by card actions or going to jail by gaining doubles. The simulation only records the final position after a dice roll.
 
@@ -559,15 +559,15 @@ The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.
 
 # Jail strategy
 
-It is apparent that there are two strategies to consider when in jail.
+It is apparent that there are two strategies to consider when in jail:
 
 -   The first is leaving jail as soon as possible
 
 -   The second is staying in jail as long as possible
 
-They come about because initially, when the board is empty and there are many properties up for grabs, a player would want to land on those squares are purchase that property, and they would not be able to do that when in jail
+They come about because initially, when the board is empty and there are many properties up for grabs, a player would want to land on those squares to purchase that property, and they would not be able to do that when in jail.
 
-But when there are many properties owned by other places and some of those properties has houses or hotels placed on them, it can be very damaging to a players cash pile and cause a ruin. Thus staying in jail to collect rent from your opponents while also buying time to avoid landing on potential game-ending squares.
+But when there are many properties owned by other players and some of those properties have houses or hotels placed on them, it can be very damaging to a player's cash pile and cause a ruin. Thus, staying in jail allows a player to collect rent from their opponents while also buying time to avoid landing on potential game-ending squares.
 
 We will adjust the simulator to take into account both strategies.
 
@@ -650,7 +650,7 @@ simulate_monopoly <- function(n_games = 1000, n_rolls = 1000,jail_stay = TRUE){
 
 ```
 
-The simulation now takes into the two strategies - leaving jail asap, or staying as long as possible.
+The simulation now takes into account the two strategies - leaving jail ASAP, or staying as long as possible.
 
 We can see how the strategies result in different probabilities for ending on a particular square in the long term.
 
@@ -687,7 +687,7 @@ anim <-  p + transition_states(name) + ease_aes('sine-in-out') +
 animate(anim,fps=30)
 ```
 
-Up to now all the simulations took the jail strategy as leaving instantly, but when we compare the long term probabilities, we see that the chance of ending up in jail is even more dominant than the previous strategy of leaving.
+Up to now, all the simulations took the jail strategy as leaving instantly, but when we compare the long term probabilities, we see that the chance of ending up in jail is even more dominant than the previous strategy of leaving.
 
 This large increase for ending up in jail suppresses the probabilities for ending a dice roll on other squares.
 
@@ -695,12 +695,12 @@ This large increase for ending up in jail suppresses the probabilities for endin
 
 The problem with these simulations is that it assumes that games of monopoly will take a sufficiently long enough time to reach the steady states discussed previously.
 
-The average number of dice rolls per player in a game of monopoly is about 30 dice rolls[^1]. So using this fact, I will simulate a game with 30 dice rolls. Though there have been estimates ranging from 30-45 rolls.
+The average number of dice rolls per player in a game of monopoly is about 30 dice rolls[^1]. So using this fact, I will simulate a game with 30 dice rolls, though there have been estimates ranging from 30-45 rolls.
 
 [^1]: This figure came from the youtube video [The Mathematics of Winning Monopoly](https://www.youtube.com/watch?v=ubQXz5RBBtU) from the\
     Stand-up Maths channel and a [blog](https://blog.ed.ted.com/2017/12/01/heres-how-to-win-at-monopoly-according-to-math-experts/#:~:text=Since%20the%20average%20game%20of,money%20into%20longer%2Dterm%20investments) post by the authors of the book mentioned in said video
 
-Since supposedly most games end after 30 dice rolls, then using this number in our simulation should give us accurate results that correspond to what happens in a real game. However, in the event that a game goes on for longer than 30 dice rolls per player, I will also long at the long term limit of dice rolls and also study those scenarios.
+Since supposedly most games end after 30 dice rolls, using this number in our simulation should give us accurate results that correspond to what happens in a real game. However, in the event that a game goes on for longer than 30 dice rolls per player, I will also look at the long term limit of dice rolls and also study those scenarios.
 
 So overall I will look at four possible situations; the chance of landing on a square after:
 
@@ -726,7 +726,7 @@ stay_30 <-  simulate_monopoly(n_games =1e5,n_rolls = 30,jail_stay = TRUE)
 
 We can view the relative percentage difference between the two dice roll situations. This asks the question, what squares are more likely to be landed on than others for the different scenarios?
 
-First up we look at the difference of leaving jail after 30 dice rolls to leaving jail after many rolls.
+First up, we look at the difference of leaving jail after 30 dice rolls to leaving jail after many rolls.
 
 ```{r, warning=FALSE}
 monopoly_props %>% 
@@ -745,7 +745,7 @@ monopoly_props %>%
         axis.ticks =element_blank())
 ```
 
-The above graph shows that when using simulating for 30 dice rolls instead of many, there is an big increase in squares that are in the first 5-20 squares than in all the other squares. In particular, the light blue and pinks see a very large percentage increase in the chances of landing on that square.
+The above graph shows that when simulating for 30 dice rolls instead of many, there is a big increase in squares that are in the first 5-20 squares than in all the other squares. In particular, the light blue and pinks see a very large percentage increase in the chances of landing on that square.
 
 Likewise we can see the difference for the stay in jail strategy.
 
@@ -766,11 +766,11 @@ monopoly_props %>%
         axis.ticks =element_blank())
 ```
 
-We see a similar situation to the leaving jail scenario, however, the big difference is that the simulation results suggest that there is a 4% decrease in the change of staying in after 30 dice rolls than going to jail after many dice rolls.
+We see a similar situation to the leaving jail scenario. However, the big difference is that the simulation results suggest that there is a 4% decrease in the chance of staying in jail after 30 dice rolls than going to jail after many dice rolls.
 
 # Graph of results
 
-Here are the graphs for the various results. First for many dice rolls
+Here are the graphs for the various results. Firstly, for many dice rolls:
 
 ```{r, fig.height=7, fig.width=10}
 p1 <-  monopoly_props %>% 
@@ -807,7 +807,7 @@ p1 + p2 + patchwork::plot_annotation(title = "Chance of ending on a square for m
 
 ```
 
-The second is the scenario after 30 dice rolls.
+Secondly, the scenario after 30 dice rolls:
 
 ```{r, fig.height=7, fig.width=10}
 p1 <-  monopoly_props %>% 
@@ -867,7 +867,7 @@ monopoly_props %>%
 
 # Conclusion
 
-We have seen how to build a simulator from a basic idea of a player going round a board to then introducing more and more of the game's mechanics to add further complexity and similarity to a real world game of monopoly. Some of the code for the simulator was inspired by Matt Parker's Monopoly code[^2], but that was built in Python, while this is in R.
+We have seen how to build a simulator from a basic idea of a player going around a board to then introducing more and more of the game's mechanics to add further complexity and similarity to a real world game of monopoly. Some of the code for the simulator was inspired by Matt Parker's Monopoly code[^2], but that was built in Python, while this is in R.
 
 [^2]: [Link](https://www.dropbox.com/s/f5xndyafuj2cmpn/monopoly-v1.py?dl=0) to the code.
 
@@ -879,6 +879,6 @@ The least likeliest are: Old Kent Road, Whitechapel Road, and Park Lane.
 
 ## Next up
 
-In the next blogpost, I will look at the fun part! In particular I will look at the properties and deciding which are the best based on a number of factors like which properties give the best ROI? which can produce the fastest returns? which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?
+In the next blog post, I will look at the fun part! In particular I will look at the properties and decide which are the best based on a number of factors like, which properties give the best ROI? Which can produce the fastest returns? Which are the best combinations of houses and hotels? Does the best property chance depending on the number of players?
 
 All that coming up!
